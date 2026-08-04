@@ -11,6 +11,8 @@
     "db:migrate": "pnpm --filter @mission-control/db migrate",
     "db:generate": "pnpm --filter @mission-control/db generate",
     "orchestrator:poc": "pnpm --filter @mission-control/orchestrator poc",
+    "orchestrator:seed": "pnpm --filter @mission-control/orchestrator seed",
+    "orchestrator:demo": "pnpm --filter @mission-control/orchestrator demo",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck"
   },
