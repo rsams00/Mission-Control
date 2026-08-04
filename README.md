@@ -24,10 +24,12 @@ independently of stage status, so context carries across the whole project lifet
 
 ## Status
 
-**Phase 2 — Tier A dashboard: done.** There's a real, clickable UI now — create a project,
-approve/reject deliverables, browse the roster, chat with any agent — all running against
-mock mode at $0. See "Try the dashboard" below to run it yourself. Phase 3 (Tier B office
-view) is next.
+**Phase 2 — Tier A dashboard: done and running end to end on the user's own machine.**
+There's a real, clickable UI — create a project, approve/reject deliverables, browse the
+roster, chat with any agent — all running against mock mode at $0. See "Try the dashboard"
+below to run it yourself. First real click-through surfaced UI feedback (layout density,
+palette, touch targets, navigation, a proper landing page) — queued as **Phase 2.1**, next
+up, ahead of Phase 3's Tier B office view.
 
 ### Cost policy
 
@@ -113,7 +115,26 @@ scripts.
   show → roster page → chat with an agent → confirm the mock reply round-trips. No console
   errors. `pnpm typecheck` and `pnpm lint` pass clean across all 4 packages.
 
-### Phase 3 — Tier B office view — next
+### Phase 2.1 — Dashboard UX refinement — next
+
+Feedback from the first real click-through on the user's own machine, queued ahead of
+Phase 3. Phase 2's dashboard is functionally complete — this pass fixes presentation, not
+mechanics:
+
+- **Layout density**: the fixed 6xl content column and default spacing read cramped on a
+  real monitor — widen the layout, give sections more room
+- **Palette**: flat near-black background reads as unfinished rather than deliberate — add
+  tonal depth (secondary/tertiary surfaces, elevation) within the dark theme, not a
+  departure from it
+- **Touch targets**: secondary controls like the Roster button are undersized relative to
+  their importance
+- **Navigation**: replace one-off links between Overview/Roster/Chat with a persistent
+  per-project tab bar
+- **Landing page**: split the always-open "create project" form out of `/projects` into its
+  own entry point, so the list can be a clean landing rather than a list with a form
+  permanently pinned above it
+
+### Phase 3 — Tier B office view — planned
 
 Required for v1, not optional. Pixel-art top-down office, one room per stage + a Lounge for
 idle agents, sprite-per-agent (art provided by the user). Ships before Parallelism — Build's
