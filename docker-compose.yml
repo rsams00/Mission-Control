@@ -1,0 +1,19 @@
+# Local-machine dev path. This sandbox environment has no reachable Docker
+# daemon, so Phase 0 here runs against a native Postgres 16 install instead
+# (see README). On your own machine, `docker compose up -d` gives you the
+# same schema this repo expects.
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mission_control
+      POSTGRES_PASSWORD: mission_control_dev
+      POSTGRES_DB: mission_control
+    ports:
+      - "5432:5432"
+    volumes:
+      - mission_control_pgdata:/var/lib/postgresql/data
+
+volumes:
+  mission_control_pgdata:

@@ -1,0 +1,27 @@
+{
+  "name": "mission-control",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @mission-control/web dev",
+    "db:migrate": "pnpm --filter @mission-control/db migrate",
+    "db:generate": "pnpm --filter @mission-control/db generate",
+    "orchestrator:poc": "pnpm --filter @mission-control/orchestrator poc",
+    "lint": "eslint .",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "eslint": "^9.19.0",
+    "@eslint/js": "^9.19.0",
+    "typescript-eslint": "^8.21.0",
+    "prettier": "^3.4.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}
