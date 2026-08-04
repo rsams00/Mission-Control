@@ -6,5 +6,6 @@ dist/
 *.log
 .turbo/
 data/transcripts/
+data/repos/
 .DS_Store
 *.tsbuildinfo

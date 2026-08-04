@@ -24,10 +24,10 @@ independently of stage status, so context carries across the whole project lifet
 
 ## Status
 
-**Phase 2.1 — Dashboard UX refinement: done.** Full visual overhaul of Tier A (new
-charcoal + orange/amber palette, a real cross-project home page, persistent per-project
-tabs, a floating project-scoped chat widget, two-column detail layout) plus real sprite art
-in Tier B, replacing the placeholder badges. Phase 4 (Parallelism) is next.
+**Phase 4 — Parallelism: done.** Build now runs Backend + Frontend in real, separate git
+worktrees with real commits; approving Build performs a real `git merge --no-ff` into the
+project's own repo, with conflicts surfaced (never auto-resolved) via a banner in the
+approval UI. Phase 5 (the Shipped→Spec loop) is next.
 
 ### Cost policy
 
@@ -71,7 +71,7 @@ The state machine and gate logic are real, even with no UI yet.
     active, add-as-needed roles present but inactive), and starts the first stage
   - `approveStage()` records the approval, blocks if the stage isn't `awaiting_approval`,
     and creates + starts the next stage. Approving Docs marks the project `Shipped`.
-    Approving Build logs that merge-to-main is a Phase 4 capability (not yet real).
+    Approving Build performs a real git merge-to-main — see Phase 4.
   - `rejectStage()` writes rejection feedback as a `chat_message`
     (`is_rejection_feedback = true`), sets `needs_revision`, and re-runs the same agent(s)
     with that feedback as context
@@ -187,12 +187,47 @@ state-machine changes.
   and the nav link in from both the project page and roster. One real bug found and fixed
   during this pass (the sprite fallback race above).
 
-### Phase 4 — Parallelism — planned
+### Phase 4 — Parallelism — done
 
-Build stage runs Backend + Frontend concurrently in separate git worktrees. Approving Build
-merges both branches straight into the project's main branch; conflicts are surfaced, never
-auto-resolved. Concurrency capped at 2. Once live, the Phase 3 office view shows both
-Backend and Frontend sprites in the Build room at once.
+Build's two coding roles (Backend, Frontend) now run against a **real local git repo**, not
+just mock deliverable content:
+
+- **Worktree manager** (`packages/orchestrator/src/worktree.ts`): a thin `git worktree`
+  wrapper. Every project gets its own repo, auto-scaffolded (`git init`, initial commit, a
+  `.gitignore` for `.worktrees/`) on first entry to Build, stored at
+  `data/repos/<project-id>/` — separate from the Mission Control repo itself, and gitignored
+  here at the root (`data/repos/`).
+- **Real worktrees + branches**: each coding session gets `git worktree add -b
+  build/<role>/<session-id-prefix> <path> main`, and the mock deliverable content is written
+  to a file and genuinely committed on that branch inside the worktree — real git objects,
+  real SHAs, not simulated.
+- **Real merge-to-main on approval**: approving a Build stage checks out `main` and runs `git
+  merge --no-ff` for each role's branch, in sequence, *before* the stage is marked approved.
+  Only the latest session per agent is merged, so a rejected-and-rerun role's earlier attempt
+  is never picked up.
+- **Conflicts are surfaced, never auto-resolved**: a failed merge runs `git merge --abort`
+  (leaving `main` byte-for-byte untouched) and throws `MergeConflictError`, which propagates
+  out of `approveStage` before any state mutates — the stage stays exactly `awaiting_approval`.
+  The Server Action catches it and returns `{ ok: false, error }`; `ApprovalControls` renders
+  it as a dismissible warning banner above the Approve/Reject buttons, telling the user to
+  reject with feedback (re-running Build) or resolve manually in the project's repo.
+- **Concurrency capped at 2** (`MAX_CONCURRENT_SESSIONS` in `state-machine.ts`): a hard,
+  loud-failing guard — not just an accident of Build being the only multi-role stage today —
+  so a future stage adding a third concurrent role fails immediately instead of silently
+  exceeding the cost-control cap.
+- **Worktrees are cleaned up** after a successful merge (`git worktree remove --force` + a
+  filesystem `rm -rf` fallback), so `data/repos/<id>/` only accumulates real commit history,
+  not stale working directories.
+
+**Verified**: a dedicated ad hoc conflict test (two worktrees writing conflicting content to
+the same file) confirmed all four properties above — conflict detected, `main`'s SHA
+unchanged, working tree clean afterward, no partial state — then was deleted once it passed.
+The happy path was verified twice via `pnpm orchestrator:demo` (real branches, real commits,
+real two-way merge, clean removal — inspected with `git log --graph --all`, `git worktree
+list`, `git ls-tree -r main`) and once end-to-end through the actual dashboard UI with a
+headless-browser script: created a project, approved through to Build, approved Build itself
+(triggering the real merge), and confirmed the stage advanced to Test with no console errors
+and no stuck state. Production build and typecheck/lint are clean.
 
 ### Phase 5 — The loop — planned
 
@@ -223,9 +258,13 @@ packages/
     src/state-machine.ts    createProject / approveStage / rejectStage
     src/session-runner.ts   mock-vs-real session dispatch (mock is default; real throws)
     src/mock-fixtures.ts    canned per-stage deliverable content for mock mode
+    src/worktree.ts         git worktree manager — real repos/branches/merges (Phase 4)
     src/cli/                seed.ts, demo.ts, poc.ts — runnable scripts, no UI yet
   db/                     Drizzle schema + migrations (single source of truth, 7 tables)
   shared/                 Shared TS types (stage/agent/session enums, etc.)
+data/
+  repos/                  gitignored — one real git repo per project, auto-scaffolded on
+                           first Build entry (Phase 4)
 ```
 
 ## Setup

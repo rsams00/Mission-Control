@@ -4,6 +4,7 @@ import type { AgentRole, StageType } from "@mission-control/shared";
 import { STAGE_TYPES } from "@mission-control/shared";
 import { ROSTER, getAgentByRole } from "./roster";
 import { runSession } from "./session-runner";
+import { ensureProjectRepo, createWorktree, commitFileInWorktree, mergeBranchToMain, removeWorktree } from "./worktree";
 
 // idea -> spec -> architecture -> build -> test -> docs -> (shipped)
 const STAGE_ORDER: StageType[] = [...STAGE_TYPES];
@@ -24,6 +25,15 @@ export const STAGE_ROLES: Record<StageType, AgentRole[]> = {
   test: ["qa"],
   docs: ["docs"],
 };
+
+/**
+ * Cost-control cap from the build brief: v1 never runs more than 2 agent
+ * sessions at once (Build's Backend + Frontend, the only stage with more
+ * than one role). Enforced explicitly here — not just an accident of
+ * STAGE_ROLES's current shape — so a future stage picking up a third
+ * concurrent role fails loudly instead of silently exceeding the cap.
+ */
+export const MAX_CONCURRENT_SESSIONS = 2;
 
 export class GateError extends Error {}
 
@@ -74,7 +84,19 @@ export async function startStage(stageId: string) {
     .set({ currentStage: stageRow.type, updatedAt: new Date() })
     .where(eq(project.id, projectRow.id));
 
+  // Auto-scaffold the project's own git repo on first entry to Build, before
+  // Backend/Frontend worktrees are created concurrently below.
+  if (stageRow.type === "build" && !projectRow.repoPath) {
+    const repoPath = await ensureProjectRepo(projectRow.id);
+    await db.update(project).set({ repoPath }).where(eq(project.id, projectRow.id));
+  }
+
   const roles = STAGE_ROLES[stageRow.type];
+  if (roles.length > MAX_CONCURRENT_SESSIONS) {
+    throw new Error(
+      `stage '${stageRow.type}' wants ${roles.length} concurrent sessions, over the cap of ${MAX_CONCURRENT_SESSIONS}`,
+    );
+  }
   await Promise.all(roles.map((role) => runRoleSession(stageRow.id, projectRow, role)));
 
   await db
@@ -110,6 +132,24 @@ async function runRoleSession(
     feedback,
   });
 
+  // Build's coding roles get a real worktree + branch and a real commit —
+  // content is still mock, but the worktree/merge mechanics are genuine,
+  // not simulated. Session id suffix keeps branch names unique across
+  // rejection re-runs of the same role.
+  let worktreePath: string | undefined;
+  let worktreeBranch: string | undefined;
+  if (stageRow.type === "build" && (role === "backend" || role === "frontend")) {
+    worktreeBranch = `build/${role}/${sessionRow.id.slice(0, 8)}`;
+    worktreePath = await createWorktree(projectRow.id, worktreeBranch);
+    const content = result.deliverable.content as { diff?: string };
+    await commitFileInWorktree(
+      worktreePath,
+      `${role}/output.txt`,
+      content.diff ?? JSON.stringify(result.deliverable.content, null, 2),
+      `${role}: mock build output`,
+    );
+  }
+
   await db.insert(deliverable).values({
     stageId,
     sessionId: sessionRow.id,
@@ -120,7 +160,13 @@ async function runRoleSession(
 
   await db
     .update(session)
-    .set({ status: "completed", endedAt: new Date(), tokenUsage: result.tokenUsage })
+    .set({
+      status: "completed",
+      endedAt: new Date(),
+      tokenUsage: result.tokenUsage,
+      worktreePath,
+      worktreeBranch,
+    })
     .where(eq(session.id, sessionRow.id));
 
   return sessionRow;
@@ -128,8 +174,13 @@ async function runRoleSession(
 
 /**
  * The one gate with a real side effect in v1: approving Build merges to
- * main (Phase 4). Every other stage's approval just unlocks the next one,
- * or marks the project Shipped on Docs.
+ * main. Every other stage's approval just unlocks the next one, or marks
+ * the project Shipped on Docs.
+ *
+ * For Build, the merge happens BEFORE the stage is marked approved: if any
+ * branch conflicts, MergeConflictError propagates straight out of this
+ * function and the stage is left exactly as it was (still
+ * awaiting_approval) — never partially approved, never auto-resolved.
  */
 export async function approveStage(stageId: string, deliverableId: string) {
   const [stageRow] = await db.select().from(stage).where(eq(stage.id, stageId)).limit(1);
@@ -140,15 +191,36 @@ export async function approveStage(stageId: string, deliverableId: string) {
     );
   }
 
+  if (stageRow.type === "build") {
+    const sessionRows = await db
+      .select({ session, agent })
+      .from(session)
+      .innerJoin(agent, eq(session.agentId, agent.id))
+      .where(eq(session.stageId, stageId))
+      .orderBy(desc(session.startedAt));
+
+    // Only the latest session per agent — a rejected/re-run role shouldn't
+    // have its earlier attempt's branch merged too.
+    const latestByAgent = new Map<string, (typeof sessionRows)[number]>();
+    for (const row of sessionRows) {
+      if (!latestByAgent.has(row.agent.id)) latestByAgent.set(row.agent.id, row);
+    }
+    const branches = Array.from(latestByAgent.values())
+      .map((row) => row.session.worktreeBranch)
+      .filter((b): b is string => Boolean(b));
+
+    for (const branch of branches) {
+      await mergeBranchToMain(stageRow.projectId, branch);
+    }
+    for (const branch of branches) {
+      await removeWorktree(stageRow.projectId, branch);
+    }
+  }
+
   await db
     .update(stage)
     .set({ status: "approved", approvedAt: new Date(), approvedDeliverableId: deliverableId })
     .where(eq(stage.id, stageId));
-
-  if (stageRow.type === "build") {
-    // Real worktree merge-to-main lands in Phase 4; mock mode just marks approved.
-    console.log(`[state-machine] Build approved for project ${stageRow.projectId} — merge-to-main is a Phase 4 capability, not yet implemented`);
-  }
 
   const [projectRow] = await db.select().from(project).where(eq(project.id, stageRow.projectId)).limit(1);
   if (!projectRow) throw new Error(`project ${stageRow.projectId} not found`);
@@ -186,6 +258,11 @@ export async function rejectStage(stageId: string, feedback: string) {
   if (!projectRow) throw new Error(`project ${stageRow.projectId} not found`);
 
   const roles = STAGE_ROLES[stageRow.type];
+  if (roles.length > MAX_CONCURRENT_SESSIONS) {
+    throw new Error(
+      `stage '${stageRow.type}' wants ${roles.length} concurrent sessions, over the cap of ${MAX_CONCURRENT_SESSIONS}`,
+    );
+  }
   for (const role of roles) {
     const roleAgent = await getAgentByRole(role);
     if (!roleAgent) continue;

@@ -8,6 +8,7 @@ import {
   approveStage,
   rejectStage,
   mockChatReplyFor,
+  MergeConflictError,
 } from "@mission-control/orchestrator";
 import { getAgent, getChatMessages } from "./data";
 
@@ -24,8 +25,23 @@ export async function createProjectAction(formData: FormData) {
 }
 
 export async function approveStageAction(projectId: string, stageId: string, deliverableId: string) {
-  await approveStage(stageId, deliverableId);
+  try {
+    await approveStage(stageId, deliverableId);
+  } catch (err) {
+    // Build's merge conflict is an expected domain outcome, not a crash —
+    // surface it to the UI instead of throwing through the action boundary.
+    // The stage itself is untouched (still awaiting_approval): approveStage
+    // only mutates state after every branch merges cleanly.
+    if (err instanceof MergeConflictError) {
+      return {
+        ok: false as const,
+        error: `Merge conflict on branch '${err.branch}' — not auto-resolved. Reject this stage with feedback to re-run Build, or resolve manually in the project's repo.`,
+      };
+    }
+    throw err;
+  }
   revalidatePath(`/projects/${projectId}`);
+  return { ok: true as const };
 }
 
 export async function rejectStageAction(projectId: string, stageId: string, feedback: string) {
