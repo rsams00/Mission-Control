@@ -1,3 +1,4 @@
-export * from "./roster.js";
-export * from "./state-machine.js";
-export * from "./session-runner.js";
+export * from "./roster";
+export * from "./state-machine";
+export * from "./session-runner";
+export * from "./mock-fixtures";

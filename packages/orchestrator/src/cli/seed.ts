@@ -1,4 +1,4 @@
-import { seedRoster } from "../roster.js";
+import { seedRoster } from "../roster";
 
 seedRoster()
   .then(() => {

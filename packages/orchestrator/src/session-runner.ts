@@ -1,5 +1,5 @@
 import type { AgentRole, StageType } from "@mission-control/shared";
-import { mockDeliverableFor, type MockDeliverable } from "./mock-fixtures.js";
+import { mockDeliverableFor, type MockDeliverable } from "./mock-fixtures";
 
 export interface SessionRunParams {
   role: AgentRole;

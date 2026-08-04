@@ -24,9 +24,10 @@ independently of stage status, so context carries across the whole project lifet
 
 ## Status
 
-**Phase 1 — Orchestrator core: done.** The state machine, approval gates, and rejection
-flow are real and verified end to end. **No UI yet** — everything below is exercised
-through scripts against the database directly. Phase 2 (Tier A dashboard) is next.
+**Phase 2 — Tier A dashboard: done.** There's a real, clickable UI now — create a project,
+approve/reject deliverables, browse the roster, chat with any agent — all running against
+mock mode at $0. See "Try the dashboard" below to run it yourself. Phase 3 (Tier B office
+view) is next.
 
 ### Cost policy
 
@@ -83,14 +84,36 @@ The state machine and gate logic are real, even with no UI yet.
   Build ran twice for Backend + Frontend), one rejection-feedback chat message recorded. A
   separate check confirmed `approveStage()` throws on a stage that isn't `awaiting_approval`.
 
-### Phase 2 — Tier A dashboard — next
+### Phase 2 — Tier A dashboard — done
 
 Project list, stage pipeline view, deliverable viewer, approve/reject controls, per-agent
 chat, org-chart roster page with live activity snippets. Dark mission-control theme,
-Tailwind + shadcn/ui. This is where mock mode becomes visually testable end to end, not just
-via scripts.
+Tailwind CSS + hand-written shadcn-style primitives (Button, Card, Badge, Textarea on
+Radix + cva). This is where mock mode became visually testable end to end, not just via
+scripts.
 
-### Phase 3 — Tier B office view — planned
+- **Routes**: `/projects` (list + create), `/projects/[id]` (pipeline, deliverable viewer,
+  approve/reject), `/projects/[id]/roster` (org-chart-style roster with live activity
+  snippets), `/projects/[id]/chat/[agentId]` (persistent per-agent chat)
+- **Data layer** (`apps/web/src/lib/data.ts`, `actions.ts`): Server Components read
+  straight from `@mission-control/db`; Server Actions call `@mission-control/orchestrator`'s
+  `createProject` / `approveStage` / `rejectStage` directly — no separate API layer or
+  running orchestrator process yet, since mock sessions resolve in ~150ms. A standalone
+  long-running orchestrator process becomes necessary once Phase 4's real worktree sessions
+  need lifecycle management beyond a single request.
+- **No WebSocket layer yet** — approve/reject/chat just refetch after the action completes,
+  which is enough while every session is mock and near-instant. Real-time streaming
+  (Socket.IO, per the original plan) becomes worth the complexity once Phase 2's mock
+  sessions are replaced by real ones that take longer than a page load.
+- A permanent **"mock mode" badge** sits in the header so it's always visible which mode
+  you're in — a UI-level reflection of the cost policy above, not just a doc note.
+- **Verified**: dev server built and run with `pnpm build` (production) and `pnpm dev`
+  (dev), then clicked through end to end with a headless-browser script — create project →
+  approve Idea → reject Spec with feedback → confirm re-queue and both sessions' deliverables
+  show → roster page → chat with an agent → confirm the mock reply round-trips. No console
+  errors. `pnpm typecheck` and `pnpm lint` pass clean across all 4 packages.
+
+### Phase 3 — Tier B office view — next
 
 Required for v1, not optional. Pixel-art top-down office, one room per stage + a Lounge for
 idle agents, sprite-per-agent (art provided by the user). Ships before Parallelism — Build's
@@ -112,7 +135,14 @@ support ongoing iteration with full history preserved per cycle.
 
 ```
 apps/
-  web/                   Next.js (App Router) — frontend + API route handlers (Phase 2+)
+  web/                   Next.js (App Router) — the Tier A dashboard
+    src/app/globals.css     dark mission-control design tokens (colors, type, per-role)
+    src/app/projects/       routes: list+create, detail, roster, chat
+    src/components/          StagePipeline, DeliverableViewer, ApprovalControls, ChatPanel,
+                              ui/ (Button, Card, Badge, Textarea — hand-written shadcn-style)
+    src/lib/data.ts          Server Component data access (reads @mission-control/db)
+    src/lib/actions.ts       Server Actions (calls @mission-control/orchestrator)
+    src/lib/agent-identity.ts  per-role color + icon, used across roster/chat/pipeline
 packages/
   orchestrator/          Long-running Node/TS process — roster, state machine, sessions
     src/roster.ts           13-role roster config + idempotent seeding
@@ -156,7 +186,18 @@ pnpm db:generate   # regenerate SQL from packages/db/src/schema.ts after a schem
 pnpm db:migrate    # apply migrations
 ```
 
-### Try the state machine (mock mode, $0)
+### Try the dashboard (mock mode, $0)
+
+```bash
+pnpm dev   # http://localhost:3000 — redirects to /projects
+```
+
+Create a project, watch Idea start automatically, approve or reject each stage's
+deliverable, browse the roster, chat with any agent. Every session behind this is mock —
+the header's "mock mode" badge is always visible as a reminder. Nothing here calls the real
+Agent SDK.
+
+### Try just the state machine (mock mode, $0, no UI)
 
 ```bash
 pnpm orchestrator:seed   # seed the 13-role roster (idempotent)
@@ -178,6 +219,7 @@ run once (see Cost policy above). Don't re-run it without a reason — mock mode
 
 | Command | Does | Real API calls? |
 |---|---|---|
+| `pnpm dev` | Run the Tier A dashboard at localhost:3000 | No |
 | `pnpm db:generate` | Generate SQL migrations from the Drizzle schema | No |
 | `pnpm db:migrate` | Apply migrations to `DATABASE_URL` | No |
 | `pnpm orchestrator:seed` | Seed the 13-role agent roster | No |
@@ -185,3 +227,4 @@ run once (see Cost policy above). Don't re-run it without a reason — mock mode
 | `pnpm orchestrator:poc` | Phase 0 streaming proof-of-concept | **Yes** |
 | `pnpm lint` | ESLint across the monorepo | No |
 | `pnpm typecheck` | TypeScript project check across all packages | No |
+| `pnpm --filter @mission-control/web build` | Production build of the dashboard | No |

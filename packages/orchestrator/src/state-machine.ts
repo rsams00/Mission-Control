@@ -2,8 +2,8 @@ import { desc, eq } from "drizzle-orm";
 import { db, project, stage, session, deliverable, chatMessage, projectAgent, agent } from "@mission-control/db";
 import type { AgentRole, StageType } from "@mission-control/shared";
 import { STAGE_TYPES } from "@mission-control/shared";
-import { ROSTER, getAgentByRole } from "./roster.js";
-import { runSession } from "./session-runner.js";
+import { ROSTER, getAgentByRole } from "./roster";
+import { runSession } from "./session-runner";
 
 // idea -> spec -> architecture -> build -> test -> docs -> (shipped)
 const STAGE_ORDER: StageType[] = [...STAGE_TYPES];

@@ -3,9 +3,9 @@
 // work — including a rejection/re-queue — before any UI exists.
 import { eq } from "drizzle-orm";
 import { db, deliverable } from "@mission-control/db";
-import { seedRoster } from "../roster.js";
-import { createProject, approveStage, rejectStage, getProjectStages } from "../state-machine.js";
-import { isMockMode } from "../session-runner.js";
+import { seedRoster } from "../roster";
+import { createProject, approveStage, rejectStage, getProjectStages } from "../state-machine";
+import { isMockMode } from "../session-runner";
 
 async function latestStage(projectId: string) {
   const stages = await getProjectStages(projectId);

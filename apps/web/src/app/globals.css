@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/*
+ * Mission Control — dark-only mission-control theme (Rev. 3 decision).
+ * Deep navy/graphite base, telemetry-cyan accent, monospace reserved for
+ * labels/data, per-role identity applied via data-role on AgentBadge.
+ */
+:root {
+  --color-bg: #0a0e14;
+  --color-surface: #111826;
+  --color-surface-raised: #161f2e;
+  --color-ink: #e7ecf3;
+  --color-ink-muted: #90a0b2;
+  --color-border: #1b2530;
+  --color-accent: #4fe0d3;
+  --color-accent-ink: #04211e;
+  --color-success: #3ddc84;
+  --color-warning: #e3a83b;
+  --color-critical: #e2685f;
+
+  /* Per-role identity — fixed across chat, roster, and the pipeline. */
+  --role-orchestrator: #9b8cff;
+  --role-product: #4fe0d3;
+  --role-architect: #62a9ff;
+  --role-backend: #6fd67a;
+  --role-frontend: #f2b84b;
+  --role-qa: #f2716b;
+  --role-docs: #b6bfca;
+  --role-researcher: #8cc7ff;
+  --role-designer: #e18de0;
+  --role-devops: #7fdbc2;
+  --role-security: #ff8c66;
+  --role-growth: #d6d15a;
+  --role-support: #9ad1ff;
+}
+
+@theme {
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-ink: var(--color-ink);
+  --color-ink-muted: var(--color-ink-muted);
+  --color-border: var(--color-border);
+  --color-accent: var(--color-accent);
+  --color-accent-ink: var(--color-accent-ink);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-critical: var(--color-critical);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
