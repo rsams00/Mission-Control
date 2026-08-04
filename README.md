@@ -24,10 +24,13 @@ independently of stage status, so context carries across the whole project lifet
 
 ## Status
 
-**Phase 4 — Parallelism: done.** Build now runs Backend + Frontend in real, separate git
-worktrees with real commits; approving Build performs a real `git merge --no-ff` into the
-project's own repo, with conflicts surfaced (never auto-resolved) via a banner in the
-approval UI. Phase 5 (the Shipped→Spec loop) is next.
+**Phase 2.2 + 3.1 (combined push) — done.** Tier A got a visual depth pass (textured
+background, elevated cards, a real session-activity sparkline) and the home page's
+"needs your attention" list became an actionable approval inbox with inline Approve/Reject.
+Tier B was rebuilt from a per-project tab into a single global Office view at `/office`
+showing every agent across every project at once, each placed in the room matching what
+they're actively doing — plus a new RPG-style agent profile panel (traits, cross-project
+session history, chat link). Phase 5 (the Shipped→Spec loop) is next.
 
 ### Cost policy
 
@@ -229,6 +232,73 @@ headless-browser script: created a project, approved through to Build, approved 
 (triggering the real merge), and confirmed the stage advanced to Test with no console errors
 and no stuck state. Production build and typecheck/lint are clean.
 
+### Phase 2.2 + 3.1 (combined push) — done
+
+Built together at the user's request rather than sequentially — a visual depth pass on
+Tier A, plus a full rebuild of Tier B from a per-project tab into a single cross-project
+office space, inspired by an F1 telemetry-dashboard reference the user provided.
+
+**Tier A visual depth (2.2)**
+- Background went from a flat `--color-bg` fill to three stacked layers: a warm radial glow
+  anchored top-center, a faint dot-grid, and an SVG `feTurbulence` grain layer blended with
+  `mix-blend-mode: overlay` — all `position: fixed` so they don't scroll with content, and
+  all subtle by design (this should read as depth, not decoration)
+- Cards (`ui/card.tsx`) got a soft drop shadow plus a 1px inset top highlight, replacing the
+  previously flat `bg-surface` block
+- A new **session-activity sparkline** on the home page — a real query
+  (`getSessionActivitySparkline`) over completed sessions grouped by day, rendered with a
+  small hand-written inline-SVG `Sparkline` component (no charting library needed for one
+  line). Mock-valued today since every session is mock, but the query itself is real and
+  needs no changes once real sessions exist
+
+**Home page approval inbox**
+- The existing "needs your attention" list now renders `ApprovalControls` inline per row
+  (fetching each stage's first deliverable id server-side) instead of just linking into the
+  project — approve or reject without leaving the home page
+- `approveStageAction`/`rejectStageAction` now also `revalidatePath("/")`, so the inbox
+  updates immediately after an inline action, not just the project page
+
+**Tier B → global Office (3.1)**
+- Moved from `/projects/[id]/office` (kept alongside it, not removed — see below) to a new
+  top-level `/office` route showing every agent across every project at once, added to the
+  main nav
+- **Cross-project room assignment** (`getGlobalOfficeState` in `apps/web/src/lib/data.ts`):
+  since each of the 13 roles is one persistent identity, not a per-project instance, the
+  most-recently-started `awaiting_approval`/`needs_revision` stage across all projects wins
+  if the same role is technically active on more than one project at once — a real edge case
+  handled gracefully, even though today's usage is one project at a time
+- **Illustrated top-down rooms** (`RoomShell` component): the user's sprite art is
+  front-facing bust portraits, not top-down movement sprites, so true animated top-down
+  characters weren't possible without new art. Instead, `RoomShell` draws a floor tile grid,
+  a wall border, and a row of desk/couch blocks in CSS, and the existing bust-portrait
+  sprites sit on top as avatar markers — matching the reference's game-room feel without
+  requiring a new asset pipeline
+- Room names kept from Phase 3 (Briefing Room, Command Center, Workspace, Studio, Lounge)
+  rather than adopting the reference's own room names, per direction to reuse our existing
+  stage-based labels
+- **Agent profile panel** (`AgentProfilePanel`, opened by clicking a marker): RPG-style
+  trait bars (Speed, Precision, Creativity, Reliability, Autonomy — 1-10, static per role for
+  now), a cross-project footprint summary, recent session history, and a link to that agent's
+  chat thread. Fetched on demand via `getAgentProfileAction`, same on-demand pattern as the
+  chat widget's thread fetch
+- **New schema**: `agent.traits` (jsonb), migrated and backfilled — `seedRoster()` now also
+  updates `traits` on already-seeded rows from before this column existed, without touching
+  any other (user-editable) field on those rows
+- A Server Component constraint worth noting: `AgentSprite`'s `fs.existsSync` check can't run
+  inside the Office view's Client Component tree (icon components and `fs`-touching code
+  aren't serializable across that boundary), so sprite URLs are resolved server-side
+  (`spriteUrlFor`) and room/stage icons are passed as string keys, resolved to Lucide
+  components client-side via a small map — both fixes needed to get a clean production build
+
+**Verified**: `pnpm typecheck`, `pnpm lint`, and a full production build all pass clean (the
+icon-serialization bug above was caught by the build, not typecheck — Next's Client Component
+boundary check runs at build time). A headless-browser pass confirmed: the visual depth
+renders, the sparkline computes real per-day counts, creating a project and advancing it to
+Build correctly places both coding agents in the global Office's Build room together, the
+profile panel opens with real trait/history data, and approving a stage inline from the home
+page's inbox performs the same real merge-to-main as the project page and advances the stage
+— confirmed via the project page reflecting Test afterward, no console errors.
+
 ### Phase 5 — The loop — planned
 
 `Shipped → Spec` inserts a new stage row with `cycle = previous + 1`, so shipped projects
@@ -239,29 +309,33 @@ support ongoing iteration with full history preserved per cycle.
 ```
 apps/
   web/                   Next.js (App Router) — the Tier A dashboard
-    src/app/page.tsx         home page — portfolio stats, needs-attention, activity, distribution
-    src/app/globals.css      charcoal + orange/amber design tokens (Rev. 4, Phase 2.1)
+    src/app/page.tsx         home page — stats, actionable approval inbox, activity sparkline
+    src/app/globals.css      charcoal + orange/amber tokens + depth pass (Rev. 5, Phase 2.2)
+    src/app/office/           global cross-project Office view (Phase 3.1) — new top-level route
     src/app/projects/        /projects (list+create, separate from home) and /projects/[id]/*
       [id]/layout.tsx           shared header, ProjectTabs, ChatWidget — wraps all child routes
-      [id]/office/              Tier B — untouched by the Phase 2.1 palette overhaul
+      [id]/office/              per-project office, kept alongside the new global one for now
     public/sprites/           real per-role character art (14 sheets, cropped + assigned)
     src/components/           StagePipeline, DeliverableViewer, ApprovalControls, ChatPanel,
                                ChatWidget (floating, project-scoped), ProjectTabs, StatTile,
+                               Sparkline, RoomShell, OfficeFloor, AgentProfilePanel,
+                               AgentMarkerVisual (client-safe sprite lookup, see Phase 3.1 notes),
                                OfficeRoom, AgentSprite (server-rendered, fs-based fallback),
                                ui/ (Button, Card, Badge, Textarea — hand-written shadcn-style)
     src/lib/data.ts           Server Component data access (reads @mission-control/db)
     src/lib/actions.ts        Server Actions (calls @mission-control/orchestrator)
     src/lib/agent-identity.ts   per-role color + icon, used across roster/chat/pipeline/office
+    src/lib/office-theme.ts     shared plum/amber Tier B token override
 packages/
   orchestrator/          Long-running Node/TS process — roster, state machine, sessions
-    src/roster.ts           13-role roster config + idempotent seeding
+    src/roster.ts           13-role roster config + traits + idempotent seeding/backfill
     src/state-machine.ts    createProject / approveStage / rejectStage
     src/session-runner.ts   mock-vs-real session dispatch (mock is default; real throws)
     src/mock-fixtures.ts    canned per-stage deliverable content for mock mode
     src/worktree.ts         git worktree manager — real repos/branches/merges (Phase 4)
     src/cli/                seed.ts, demo.ts, poc.ts — runnable scripts, no UI yet
   db/                     Drizzle schema + migrations (single source of truth, 7 tables)
-  shared/                 Shared TS types (stage/agent/session enums, etc.)
+  shared/                 Shared TS types (stage/agent/session enums, agent traits, etc.)
 data/
   repos/                  gitignored — one real git repo per project, auto-scaffolded on
                            first Build entry (Phase 4)

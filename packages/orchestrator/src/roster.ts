@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, agent } from "@mission-control/db";
-import type { AgentRole } from "@mission-control/shared";
+import type { AgentRole, AgentTraits } from "@mission-control/shared";
 
 export interface RosterEntry {
   role: AgentRole;
@@ -10,6 +10,8 @@ export interface RosterEntry {
   model: string;
   /** Whether this role is active on a new project by default. */
   coreTeam: boolean;
+  /** RPG-style flavor stats (1-10), shown on the agent profile panel. */
+  traits: AgentTraits;
 }
 
 const OPUS = "claude-opus-5";
@@ -29,6 +31,7 @@ export const ROSTER: RosterEntry[] = [
     toolScope: { tools: ["ReadProjectState"], codeTools: false },
     model: OPUS,
     coreTeam: true,
+    traits: { speed: 7, precision: 8, creativity: 6, reliability: 9, autonomy: 9 },
   },
   {
     role: "product",
@@ -39,6 +42,7 @@ export const ROSTER: RosterEntry[] = [
     toolScope: { tools: ["WebSearch", "Write"], codeTools: false },
     model: OPUS,
     coreTeam: true,
+    traits: { speed: 6, precision: 7, creativity: 9, reliability: 8, autonomy: 7 },
   },
   {
     role: "architect",
@@ -49,6 +53,7 @@ export const ROSTER: RosterEntry[] = [
     toolScope: { tools: ["Read", "Write"], codeTools: false },
     model: OPUS,
     coreTeam: true,
+    traits: { speed: 5, precision: 9, creativity: 8, reliability: 9, autonomy: 8 },
   },
   {
     role: "backend",
@@ -59,6 +64,7 @@ export const ROSTER: RosterEntry[] = [
     toolScope: { tools: ["Read", "Write", "Edit", "Bash"], worktree: true },
     model: SONNET,
     coreTeam: true,
+    traits: { speed: 8, precision: 8, creativity: 5, reliability: 8, autonomy: 7 },
   },
   {
     role: "frontend",
@@ -69,6 +75,7 @@ export const ROSTER: RosterEntry[] = [
     toolScope: { tools: ["Read", "Write", "Edit", "Bash"], worktree: true },
     model: SONNET,
     coreTeam: true,
+    traits: { speed: 8, precision: 7, creativity: 8, reliability: 7, autonomy: 7 },
   },
   {
     role: "qa",
@@ -79,6 +86,7 @@ export const ROSTER: RosterEntry[] = [
     toolScope: { tools: ["Read", "Bash"], writeScope: "tests-only" },
     model: SONNET,
     coreTeam: true,
+    traits: { speed: 7, precision: 9, creativity: 4, reliability: 9, autonomy: 6 },
   },
   {
     role: "docs",
@@ -89,6 +97,7 @@ export const ROSTER: RosterEntry[] = [
     toolScope: { tools: ["Read", "Write"], writeScope: "docs-only" },
     model: HAIKU,
     coreTeam: true,
+    traits: { speed: 9, precision: 7, creativity: 5, reliability: 8, autonomy: 8 },
   },
   {
     role: "researcher",
@@ -99,6 +108,7 @@ export const ROSTER: RosterEntry[] = [
     toolScope: { tools: ["WebSearch", "Read"], codeTools: false },
     model: SONNET,
     coreTeam: false,
+    traits: { speed: 6, precision: 6, creativity: 8, reliability: 6, autonomy: 7 },
   },
   {
     role: "designer",
@@ -107,6 +117,7 @@ export const ROSTER: RosterEntry[] = [
     toolScope: { tools: ["Read", "Write"], codeTools: false },
     model: SONNET,
     coreTeam: false,
+    traits: { speed: 6, precision: 6, creativity: 10, reliability: 6, autonomy: 6 },
   },
   {
     role: "devops",
@@ -115,6 +126,7 @@ export const ROSTER: RosterEntry[] = [
     toolScope: { tools: ["Read", "Write", "Bash"], codeTools: true },
     model: SONNET,
     coreTeam: false,
+    traits: { speed: 7, precision: 8, creativity: 5, reliability: 8, autonomy: 8 },
   },
   {
     role: "security",
@@ -123,6 +135,7 @@ export const ROSTER: RosterEntry[] = [
     toolScope: { tools: ["Read", "Bash"], codeTools: false },
     model: SONNET,
     coreTeam: false,
+    traits: { speed: 5, precision: 10, creativity: 4, reliability: 9, autonomy: 7 },
   },
   {
     role: "growth",
@@ -132,6 +145,7 @@ export const ROSTER: RosterEntry[] = [
     toolScope: { tools: ["Read"], codeTools: false },
     model: HAIKU,
     coreTeam: false,
+    traits: { speed: 7, precision: 6, creativity: 7, reliability: 6, autonomy: 6 },
   },
   {
     role: "support",
@@ -140,27 +154,43 @@ export const ROSTER: RosterEntry[] = [
     toolScope: { tools: ["Read"], codeTools: false },
     model: HAIKU,
     coreTeam: false,
+    traits: { speed: 8, precision: 6, creativity: 5, reliability: 7, autonomy: 5 },
   },
 ];
 
-/** Idempotent: inserts any roster entries not already present by role. */
+/**
+ * Idempotent: inserts any roster entries not already present by role, and
+ * backfills `traits` on existing rows seeded before that column existed
+ * (Phase 3.1) — every other field is left alone once a row exists, since
+ * name/prompt/model are meant to be user-editable after seeding.
+ */
 export async function seedRoster(): Promise<void> {
-  const existing = await db.select({ role: agent.role }).from(agent);
+  const existing = await db.select({ role: agent.role, traits: agent.traits }).from(agent);
   const existingRoles = new Set(existing.map((row) => row.role));
 
   const missing = ROSTER.filter((entry) => !existingRoles.has(entry.role));
-  if (missing.length === 0) return;
+  if (missing.length > 0) {
+    await db.insert(agent).values(
+      missing.map((entry) => ({
+        role: entry.role,
+        name: entry.name,
+        systemPrompt: entry.systemPrompt,
+        toolScope: entry.toolScope,
+        model: entry.model,
+        active: true,
+        traits: entry.traits,
+      })),
+    );
+  }
 
-  await db.insert(agent).values(
-    missing.map((entry) => ({
-      role: entry.role,
-      name: entry.name,
-      systemPrompt: entry.systemPrompt,
-      toolScope: entry.toolScope,
-      model: entry.model,
-      active: true,
-    })),
+  const needsTraits = existing.filter(
+    (row) => !row.traits || Object.keys(row.traits as object).length === 0,
   );
+  for (const row of needsTraits) {
+    const entry = ROSTER.find((r) => r.role === row.role);
+    if (!entry) continue;
+    await db.update(agent).set({ traits: entry.traits }).where(eq(agent.role, row.role));
+  }
 }
 
 export async function getAgentByRole(role: AgentRole) {

@@ -56,3 +56,10 @@ export type DeliverableRenderType = (typeof DELIVERABLE_RENDER_TYPES)[number];
 
 export const CHAT_ROLES = ["user", "agent"] as const;
 export type ChatRole = (typeof CHAT_ROLES)[number];
+
+// RPG-style flavor stats (1-10) shown on an agent's profile panel. Static
+// per-role seed data for now — see agent.traits in the db schema for why
+// the shape is future-proofed for real numbers.
+export const AGENT_TRAIT_KEYS = ["speed", "precision", "creativity", "reliability", "autonomy"] as const;
+export type AgentTraitKey = (typeof AGENT_TRAIT_KEYS)[number];
+export type AgentTraits = Record<AgentTraitKey, number>;

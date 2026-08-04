@@ -10,7 +10,7 @@ import {
   mockChatReplyFor,
   MergeConflictError,
 } from "@mission-control/orchestrator";
-import { getAgent, getChatMessages } from "./data";
+import { getAgent, getChatMessages, getAgentActivity } from "./data";
 
 export async function createProjectAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
@@ -41,12 +41,14 @@ export async function approveStageAction(projectId: string, stageId: string, del
     throw err;
   }
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/"); // home page's approval inbox shows this same stage
   return { ok: true as const };
 }
 
 export async function rejectStageAction(projectId: string, stageId: string, feedback: string) {
   await rejectStage(stageId, feedback);
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/");
 }
 
 export async function sendChatMessageAction(projectId: string, agentId: string, content: string) {
@@ -79,4 +81,11 @@ export async function sendChatMessageAction(projectId: string, agentId: string, 
  * demand when an agent is selected, without a full page navigation. */
 export async function getChatMessagesAction(projectId: string, agentId: string) {
   return getChatMessages(projectId, agentId);
+}
+
+/** Lets the Office view's profile panel (a Client Component) pull one
+ * agent's traits + cross-project history on demand when clicked. */
+export async function getAgentProfileAction(agentId: string) {
+  const [agentRow, activity] = await Promise.all([getAgent(agentId), getAgentActivity(agentId)]);
+  return { agent: agentRow, activity };
 }

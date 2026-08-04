@@ -79,6 +79,11 @@ export const agent = pgTable("agent", {
   toolScope: jsonb("tool_scope").notNull().default({}),
   model: text("model").notNull(),
   active: boolean("active").notNull().default(true),
+  // RPG-style flavor stats shown on the agent profile panel (Phase 3.1).
+  // Static per-role for now; shaped so real numbers (e.g. reliability from
+  // actual approval/rejection history) can replace the seeded values later
+  // without a schema change.
+  traits: jsonb("traits").notNull().default({}),
 });
 
 // Which roles are enabled for a given project. Core team rows are inserted

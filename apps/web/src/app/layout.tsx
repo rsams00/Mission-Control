@@ -33,6 +33,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               >
                 Projects
               </Link>
+              <Link
+                href="/office"
+                className="rounded-full px-3.5 py-1.5 text-sm text-ink-muted transition-colors hover:bg-surface-raised hover:text-ink"
+              >
+                Office
+              </Link>
             </nav>
             <span className="ml-auto rounded-full border border-accent/40 bg-accent/10 px-3 py-1 font-mono text-[0.65rem] uppercase tracking-wide text-accent">
               mock mode

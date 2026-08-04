@@ -5,12 +5,16 @@ import {
   getNeedsAttention,
   getPortfolioActivity,
   getPipelineDistribution,
+  getStageDeliverables,
+  getSessionActivitySparkline,
 } from "@/lib/data";
 import { StatTile } from "@/components/stat-tile";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StageStatusBadge } from "@/components/stage-badge";
-import { FolderKanban, AlertCircle, CheckCircle2, Users, DollarSign, Plus, ArrowRight } from "lucide-react";
+import { ApprovalControls } from "@/components/approval-controls";
+import { Sparkline } from "@/components/sparkline";
+import { FolderKanban, AlertCircle, CheckCircle2, Users, DollarSign, Plus } from "lucide-react";
 
 const STAGE_LABEL: Record<string, string> = {
   idea: "Idea",
@@ -23,12 +27,24 @@ const STAGE_LABEL: Record<string, string> = {
 };
 
 export default async function HomePage() {
-  const [stats, needsAttention, activity, distribution] = await Promise.all([
+  const [stats, needsAttention, activity, distribution, sparkline] = await Promise.all([
     getPortfolioStats(),
     getNeedsAttention(),
     getPortfolioActivity(),
     getPipelineDistribution(),
+    getSessionActivitySparkline(),
   ]);
+
+  // Approval inbox needs a deliverable id per stage to wire up inline
+  // Approve/Reject — same "first deliverable" convention the project page
+  // uses (Build's role deliverables aren't merged into one record; the
+  // stage-level approval doesn't depend on which one is referenced).
+  const inboxItems = await Promise.all(
+    needsAttention.map(async ({ stage, project }) => {
+      const deliverables = await getStageDeliverables(stage.id);
+      return { stage, project, deliverableId: deliverables[0]?.id ?? null };
+    }),
+  );
 
   return (
     <div className="flex flex-col gap-10">
@@ -65,60 +81,81 @@ export default async function HomePage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Needs your attention</CardTitle>
-            <CardDescription>Every stage currently waiting on an approval, across every project.</CardDescription>
+            <CardDescription>
+              Every stage currently waiting on an approval, across every project — approve or reject right here.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-1">
-            {needsAttention.length === 0 ? (
+          <CardContent className="flex flex-col gap-4">
+            {inboxItems.length === 0 ? (
               <p className="text-sm text-ink-muted">Nothing waiting on you right now.</p>
             ) : (
-              needsAttention.map(({ stage, project }) => (
-                <Link
-                  key={stage.id}
-                  href={`/projects/${project.id}`}
-                  className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-surface-raised"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium text-ink">{project.name}</span>
-                    <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
-                      {STAGE_LABEL[stage.type]}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
+              inboxItems.map(({ stage, project, deliverableId }) => (
+                <div key={stage.id} className="flex flex-col gap-3 rounded-xl border border-border p-3.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <Link href={`/projects/${project.id}`} className="flex items-center gap-3 hover:text-accent">
+                      <span className="font-medium text-ink">{project.name}</span>
+                      <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
+                        {STAGE_LABEL[stage.type]}
+                      </span>
+                    </Link>
                     <StageStatusBadge status={stage.status} />
-                    <ArrowRight className="h-3.5 w-3.5 text-ink-muted" />
                   </div>
-                </Link>
+                  {deliverableId ? (
+                    <ApprovalControls projectId={project.id} stageId={stage.id} deliverableId={deliverableId} />
+                  ) : (
+                    <p className="text-xs text-ink-muted">No deliverable yet — check the project page.</p>
+                  )}
+                </div>
               ))
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Pipeline shape</CardTitle>
-            <CardDescription>How many projects are in each stage.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2.5">
-            {PROJECT_STAGES.map((s) => {
-              const count = distribution.get(s) ?? 0;
-              const max = Math.max(1, ...Array.from(distribution.values()));
-              return (
-                <div key={s} className="flex items-center gap-3">
-                  <span className="w-24 shrink-0 font-mono text-xs uppercase tracking-wide text-ink-muted">
-                    {STAGE_LABEL[s]}
-                  </span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-raised">
-                    <div
-                      className="h-full rounded-full bg-accent"
-                      style={{ width: `${(count / max) * 100}%` }}
-                    />
+        <div className="flex flex-col gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Session activity</CardTitle>
+              <CardDescription>Sessions completed per day, last 14 days.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Sparkline points={sparkline.map((d) => d.count)} />
+              <div className="mt-2 flex items-center justify-between text-[0.68rem] text-ink-muted">
+                <span>{sparkline[0]?.date.slice(5)}</span>
+                <span className="stat-number text-ink">
+                  {sparkline.reduce((sum, d) => sum + d.count, 0)} total
+                </span>
+                <span>{sparkline[sparkline.length - 1]?.date.slice(5)}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Pipeline shape</CardTitle>
+              <CardDescription>How many projects are in each stage.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-2.5">
+              {PROJECT_STAGES.map((s) => {
+                const count = distribution.get(s) ?? 0;
+                const max = Math.max(1, ...Array.from(distribution.values()));
+                return (
+                  <div key={s} className="flex items-center gap-3">
+                    <span className="w-24 shrink-0 font-mono text-xs uppercase tracking-wide text-ink-muted">
+                      {STAGE_LABEL[s]}
+                    </span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-raised">
+                      <div
+                        className="h-full rounded-full bg-accent"
+                        style={{ width: `${(count / max) * 100}%` }}
+                      />
+                    </div>
+                    <span className="stat-number w-4 text-right text-xs text-ink-muted">{count}</span>
                   </div>
-                  <span className="stat-number w-4 text-right text-xs text-ink-muted">{count}</span>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <Card>

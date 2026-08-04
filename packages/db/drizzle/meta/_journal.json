@@ -8,6 +8,13 @@
       "when": 1785812387350,
       "tag": "0000_concerned_lethal_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785879372448,
+      "tag": "0001_hard_lord_hawal",
+      "breakpoints": true
     }
   ]
 }

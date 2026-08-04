@@ -21,6 +21,16 @@ function spriteExists(role: AgentRole): boolean {
   }
 }
 
+/**
+ * Server-only lookup returning a plain URL string (or null) instead of
+ * JSX — for pages that need to pass sprite availability into a Client
+ * Component tree (e.g. the global Office view's marker list), where
+ * AgentSprite itself can't be rendered because it touches `fs`.
+ */
+export function spriteUrlFor(role: AgentRole): string | null {
+  return spriteExists(role) ? `/sprites/${role}.png` : null;
+}
+
 export function AgentSprite({
   role,
   size = 56,

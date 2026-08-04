@@ -60,12 +60,45 @@ html {
   color-scheme: dark;
 }
 
+/*
+ * Depth pass (2.2): the flat --color-bg read as unfinished rather than
+ * deliberate. Three stacked layers, all fixed so they don't scroll with
+ * content: a warm radial glow anchored top-center, a faint dot-grid for
+ * texture, and a grain layer (SVG feTurbulence data URI) for the "screen"
+ * feel from the reference telemetry dashboard. Every layer is subtle by
+ * design — this should read as depth, not decoration.
+ */
 body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(ellipse 1200px 700px at 50% -10%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 60%),
+    radial-gradient(ellipse 900px 600px at 100% 100%, color-mix(in srgb, var(--color-accent) 5%, transparent), transparent 65%),
+    var(--color-bg);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background-image:
+    radial-gradient(color-mix(in srgb, var(--color-ink) 14%, transparent) 1px, transparent 1px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  background-size: 22px 22px, 120px 120px;
 }
 
 a {

@@ -10,7 +10,8 @@ import {
   projectAgent,
   agent,
 } from "@mission-control/db";
-import { seedRoster } from "@mission-control/orchestrator";
+import { seedRoster, STAGE_ROLES } from "@mission-control/orchestrator";
+import type { StageType } from "@mission-control/shared";
 
 let seeded = false;
 async function ensureSeeded() {
@@ -188,4 +189,99 @@ export async function getPortfolioStats() {
     totalCostUsd,
     totalSessions: allSessions.length,
   };
+}
+
+export interface OfficeAssignment {
+  projectId: string;
+  projectName: string;
+  stageType: StageType;
+  stageStatus: string;
+}
+
+/**
+ * Cross-project room assignment for the global Office view (Phase 3.1).
+ * Every agent role is one persistent identity, so if the same role is
+ * "active" on more than one project at once — possible in principle, even
+ * though today's usage is one project at a time — the most recently
+ * started stage wins; that's the room they're shown in.
+ */
+export async function getGlobalOfficeState() {
+  await ensureSeeded();
+  const [allAgents, activeStageRows] = await Promise.all([
+    db.select().from(agent).orderBy(agent.role),
+    db
+      .select({ stage, project })
+      .from(stage)
+      .innerJoin(project, eq(stage.projectId, project.id))
+      .orderBy(desc(stage.startedAt)),
+  ]);
+
+  const relevant = activeStageRows.filter(
+    (r) => r.stage.status === "awaiting_approval" || r.stage.status === "needs_revision",
+  );
+
+  const assignmentByRole = new Map<string, OfficeAssignment>();
+  for (const { stage: s, project: p } of relevant) {
+    for (const role of STAGE_ROLES[s.type]) {
+      if (assignmentByRole.has(role)) continue; // already claimed by a more-recent stage
+      assignmentByRole.set(role, {
+        projectId: p.id,
+        projectName: p.name,
+        stageType: s.type,
+        stageStatus: s.status,
+      });
+    }
+  }
+
+  return allAgents.map((a) => ({
+    agent: a,
+    assignment: assignmentByRole.get(a.role) ?? null,
+  }));
+}
+
+/**
+ * Daily session counts for the last N days, oldest first — feeds the home
+ * page's activity sparkline. Real query over real session rows; mock mode
+ * just means every count so far reflects mock (near-instant, $0) sessions
+ * rather than real ones — the shape of the query doesn't change once real
+ * sessions exist.
+ */
+export async function getSessionActivitySparkline(days = 14) {
+  const since = new Date();
+  since.setDate(since.getDate() - (days - 1));
+  since.setHours(0, 0, 0, 0);
+
+  const rows = await db
+    .select({ startedAt: session.startedAt })
+    .from(session)
+    .where(and(eq(session.status, "completed")));
+
+  const counts = new Map<string, number>();
+  for (let i = 0; i < days; i++) {
+    const d = new Date(since);
+    d.setDate(d.getDate() + i);
+    counts.set(d.toISOString().slice(0, 10), 0);
+  }
+  for (const row of rows) {
+    if (!row.startedAt || row.startedAt < since) continue;
+    const key = row.startedAt.toISOString().slice(0, 10);
+    if (counts.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return Array.from(counts.entries()).map(([date, count]) => ({ date, count }));
+}
+
+/** One agent's cross-project footprint for the profile panel: every session
+ * they've run and every project they've touched, newest first. */
+export async function getAgentActivity(agentId: string) {
+  const rows = await db
+    .select({ session, stage, project })
+    .from(session)
+    .innerJoin(stage, eq(session.stageId, stage.id))
+    .innerJoin(project, eq(stage.projectId, project.id))
+    .where(eq(session.agentId, agentId))
+    .orderBy(desc(session.startedAt))
+    .limit(20);
+
+  const projectIds = new Set(rows.map((r) => r.project.id));
+  return { sessions: rows, projectCount: projectIds.size };
 }
