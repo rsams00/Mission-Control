@@ -69,6 +69,18 @@ export async function getChatMessages(projectId: string, agentId: string) {
     .orderBy(chatMessage.createdAt);
 }
 
+/**
+ * The stage currently awaiting attention (awaiting_approval or
+ * needs_revision), if any — used by the office view to decide which room
+ * is "active" right now. A project with nothing awaiting approval (just
+ * created, or Shipped) has no active stage, so every agent sits in the
+ * Lounge.
+ */
+export async function getActiveStage(projectId: string) {
+  const stages = await getProjectStages(projectId);
+  return stages.find((s) => s.status === "awaiting_approval" || s.status === "needs_revision");
+}
+
 /** Most recent session per agent for a project, used for roster activity snippets. */
 export async function getLatestSessionsByAgent(projectId: string) {
   const rows = await db
@@ -84,4 +96,21 @@ export async function getLatestSessionsByAgent(projectId: string) {
     if (!latestByAgent.has(row.agent.id)) latestByAgent.set(row.agent.id, row);
   }
   return latestByAgent;
+}
+
+/**
+ * Recent session events across the whole project, newest first — feeds the
+ * office view's activity log. This is a static snapshot, not a live stream:
+ * there's no WebSocket/real-time layer yet (see README), which is fine
+ * while every session is mock and resolves in ~150ms.
+ */
+export async function getRecentActivity(projectId: string, limit = 12) {
+  return db
+    .select({ session, stage, agent })
+    .from(session)
+    .innerJoin(stage, eq(session.stageId, stage.id))
+    .innerJoin(agent, eq(session.agentId, agent.id))
+    .where(eq(stage.projectId, projectId))
+    .orderBy(desc(session.startedAt))
+    .limit(limit);
 }

@@ -24,12 +24,11 @@ independently of stage status, so context carries across the whole project lifet
 
 ## Status
 
-**Phase 2 — Tier A dashboard: done and running end to end on the user's own machine.**
-There's a real, clickable UI — create a project, approve/reject deliverables, browse the
-roster, chat with any agent — all running against mock mode at $0. See "Try the dashboard"
-below to run it yourself. First real click-through surfaced UI feedback (layout density,
-palette, touch targets, navigation, a proper landing page) — queued as **Phase 2.1**, next
-up, ahead of Phase 3's Tier B office view.
+**Phase 3 — Tier B office view: done.** Every project now has an `/office` view — rooms per
+stage, agent sprites, a live activity log — built directly on top of Phase 2's dashboard
+state, still $0. Phase 2.1 (dashboard UX refinement, queued after Phase 2's first
+click-through) is still outstanding — Phase 3 was pulled forward ahead of it at the user's
+explicit request. Phase 4 (Parallelism) is next.
 
 ### Cost policy
 
@@ -115,7 +114,9 @@ scripts.
   show → roster page → chat with an agent → confirm the mock reply round-trips. No console
   errors. `pnpm typecheck` and `pnpm lint` pass clean across all 4 packages.
 
-### Phase 2.1 — Dashboard UX refinement — next
+### Phase 2.1 — Dashboard UX refinement — outstanding
+
+Still queued, not built — Phase 3 was pulled forward ahead of it at the user's request.
 
 Feedback from the first real click-through on the user's own machine, queued ahead of
 Phase 3. Phase 2's dashboard is functionally complete — this pass fixes presentation, not
@@ -134,11 +135,36 @@ mechanics:
   own entry point, so the list can be a clean landing rather than a list with a form
   permanently pinned above it
 
-### Phase 3 — Tier B office view — planned
+### Phase 3 — Tier B office view — done
 
-Required for v1, not optional. Pixel-art top-down office, one room per stage + a Lounge for
-idle agents, sprite-per-agent (art provided by the user). Ships before Parallelism — Build's
-room shows one active sprite until Phase 4 adds real concurrency.
+Required for v1, not optional. Built directly on Phase 2's existing state — no schema or
+state-machine changes.
+
+- **Rooms** (`apps/web/src/app/projects/[id]/office/page.tsx`): one zone per stage type +
+  a Lounge, styled as labeled panels rather than a literal top-down floor plan — the
+  provided sprite art is front-facing bust portraits, not top-down movement sprites, so
+  panels fit the art better than a drawn floor plan would. Room assignment: an agent's role
+  is placed in the room matching the project's active stage (`awaiting_approval` /
+  `needs_revision`) if their role is one of that stage's assigned roles (reusing
+  `STAGE_ROLES`, now exported from `@mission-control/orchestrator`); everyone else sits in
+  the Lounge. A project with nothing awaiting approval (freshly created mid-run, or
+  Shipped) puts the whole roster in the Lounge.
+- **Sprites** (`components/agent-sprite.tsx`): server-rendered, checks
+  `apps/web/public/sprites/<role>.png` via `fs.existsSync` on every request and falls back
+  to the Tier A icon/color badge if the file isn't there — drop a PNG in, reload, it
+  appears, zero code changes. (First version used a client-side `<img onError>` check,
+  which turned out to race against hydration in a Server Component tree and never fired;
+  moved the check server-side instead — see the component's comment.)
+- **Activity log**: a static list of the project's most recent sessions instead of a real
+  xterm.js/WebSocket stream — there's no real-time layer yet (see Phase 2 notes above), and
+  building one for mock sessions that resolve in ~150ms wouldn't prove anything. Real
+  streaming is worth it once Phase 4's sessions actually take time.
+- **Palette**: intentionally distinct from Tier A — a warm plum/amber theme scoped to the
+  office page via local CSS custom property overrides, not the dashboard's navy/cyan.
+- **Verified**: production build, plus a headless-browser click-through across every room
+  state — Idea active or Lounge-only, Build's two-agent room, Shipped (everyone in Lounge),
+  and the nav link in from both the project page and roster. One real bug found and fixed
+  during this pass (the sprite fallback race above).
 
 ### Phase 4 — Parallelism — planned
 
@@ -158,12 +184,14 @@ support ongoing iteration with full history preserved per cycle.
 apps/
   web/                   Next.js (App Router) — the Tier A dashboard
     src/app/globals.css     dark mission-control design tokens (colors, type, per-role)
-    src/app/projects/       routes: list+create, detail, roster, chat
+    src/app/projects/       routes: list+create, detail, roster, chat, office (Tier B)
+    public/sprites/          drop-in agent PNGs, see the README in that folder
     src/components/          StagePipeline, DeliverableViewer, ApprovalControls, ChatPanel,
+                              OfficeRoom, AgentSprite (server-rendered, fs-based fallback),
                               ui/ (Button, Card, Badge, Textarea — hand-written shadcn-style)
     src/lib/data.ts          Server Component data access (reads @mission-control/db)
     src/lib/actions.ts       Server Actions (calls @mission-control/orchestrator)
-    src/lib/agent-identity.ts  per-role color + icon, used across roster/chat/pipeline
+    src/lib/agent-identity.ts  per-role color + icon, used across roster/chat/pipeline/office
 packages/
   orchestrator/          Long-running Node/TS process — roster, state machine, sessions
     src/roster.ts           13-role roster config + idempotent seeding
@@ -214,9 +242,13 @@ pnpm dev   # http://localhost:3000 — redirects to /projects
 ```
 
 Create a project, watch Idea start automatically, approve or reject each stage's
-deliverable, browse the roster, chat with any agent. Every session behind this is mock —
-the header's "mock mode" badge is always visible as a reminder. Nothing here calls the real
-Agent SDK.
+deliverable, browse the roster, chat with any agent, then hit **Office** to see the Tier B
+room view of the same project. Every session behind this is mock — the header's
+"mock mode" badge is always visible as a reminder. Nothing here calls the real Agent SDK.
+
+To add real sprite art: drop PNGs named `<role>.png` (see
+`apps/web/public/sprites/README.md` for the exact role slugs) into that folder and reload —
+no code changes needed.
 
 ### Try just the state machine (mock mode, $0, no UI)
 

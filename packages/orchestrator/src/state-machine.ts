@@ -14,7 +14,9 @@ function nextStageType(current: StageType): StageType | "shipped" {
 }
 
 // Idea and Spec are both owned by Product; Build needs both coding roles.
-const STAGE_ROLES: Record<StageType, AgentRole[]> = {
+// Exported for the Tier B office view, which needs the same stage->role
+// mapping to decide which room an agent's sprite belongs in.
+export const STAGE_ROLES: Record<StageType, AgentRole[]> = {
   idea: ["product"],
   spec: ["product"],
   architecture: ["architect"],

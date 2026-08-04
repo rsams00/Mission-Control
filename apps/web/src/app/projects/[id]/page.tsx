@@ -7,7 +7,7 @@ import { DeliverableViewer } from "@/components/deliverable-viewer";
 import { ApprovalControls } from "@/components/approval-controls";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AGENT_IDENTITY } from "@/lib/agent-identity";
-import { Users, MessageCircle } from "lucide-react";
+import { Users, MessageCircle, Gamepad2 } from "lucide-react";
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -30,6 +30,13 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         </div>
         <div className="flex items-center gap-3">
           <CurrentStageBadge stage={project.currentStage} />
+          <Link
+            href={`/projects/${id}/office`}
+            className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-ink-muted hover:text-ink"
+          >
+            <Gamepad2 className="h-3.5 w-3.5" />
+            Office
+          </Link>
           <Link
             href={`/projects/${id}/roster`}
             className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-ink-muted hover:text-ink"
