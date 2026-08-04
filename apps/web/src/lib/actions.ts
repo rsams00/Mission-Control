@@ -9,7 +9,7 @@ import {
   rejectStage,
   mockChatReplyFor,
 } from "@mission-control/orchestrator";
-import { getAgent } from "./data";
+import { getAgent, getChatMessages } from "./data";
 
 export async function createProjectAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
@@ -57,4 +57,10 @@ export async function sendChatMessageAction(projectId: string, agentId: string, 
   }
 
   revalidatePath(`/projects/${projectId}/chat/${agentId}`);
+}
+
+/** Lets the floating chat widget (a Client Component) pull a thread on
+ * demand when an agent is selected, without a full page navigation. */
+export async function getChatMessagesAction(projectId: string, agentId: string) {
+  return getChatMessages(projectId, agentId);
 }

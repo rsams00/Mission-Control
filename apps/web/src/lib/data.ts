@@ -114,3 +114,78 @@ export async function getRecentActivity(projectId: string, limit = 12) {
     .orderBy(desc(session.startedAt))
     .limit(limit);
 }
+
+/** Every stage, across every project, currently sitting in awaiting_approval
+ * or needs_revision — the home page's "needs your attention" list. */
+export async function getNeedsAttention() {
+  await ensureSeeded();
+  const rows = await db
+    .select({ stage, project })
+    .from(stage)
+    .innerJoin(project, eq(stage.projectId, project.id))
+    .orderBy(desc(stage.startedAt));
+  return rows.filter((r) => r.stage.status === "awaiting_approval" || r.stage.status === "needs_revision");
+}
+
+/** Cross-project version of getRecentActivity, for the home page feed. */
+export async function getPortfolioActivity(limit = 10) {
+  return db
+    .select({ session, stage, project, agent })
+    .from(session)
+    .innerJoin(stage, eq(session.stageId, stage.id))
+    .innerJoin(project, eq(stage.projectId, project.id))
+    .innerJoin(agent, eq(session.agentId, agent.id))
+    .orderBy(desc(session.startedAt))
+    .limit(limit);
+}
+
+/** How many projects currently sit in each pipeline stage — home page's
+ * portfolio-shape tile. */
+export async function getPipelineDistribution() {
+  await ensureSeeded();
+  const rows = await db.select({ currentStage: project.currentStage }).from(project);
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    counts.set(row.currentStage, (counts.get(row.currentStage) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/**
+ * Portfolio-wide headline numbers for the home page: total projects, how
+ * many need approval right now, how many have shipped, how many distinct
+ * agents are currently active across all projects, and a running cost
+ * total (always $0 in mock mode — see README's cost policy).
+ */
+export async function getPortfolioStats() {
+  await ensureSeeded();
+  const [allProjects, needsAttention, allSessions] = await Promise.all([
+    listProjects(),
+    getNeedsAttention(),
+    db.select({ session, stage }).from(session).innerJoin(stage, eq(session.stageId, stage.id)),
+  ]);
+
+  const attentionProjectIds = new Set(needsAttention.map((r) => r.project.id));
+  const shippedCount = allProjects.filter((p) => p.currentStage === "shipped").length;
+
+  const activeAgentIds = new Set(
+    allSessions
+      .filter((r) => r.stage.status === "awaiting_approval" || r.stage.status === "needs_revision")
+      .map((r) => r.session.agentId),
+  );
+
+  let totalCostUsd = 0;
+  for (const { session: s } of allSessions) {
+    const usage = s.tokenUsage as { cost_usd?: number } | null;
+    totalCostUsd += usage?.cost_usd ?? 0;
+  }
+
+  return {
+    totalProjects: allProjects.length,
+    awaitingApprovalCount: attentionProjectIds.size,
+    shippedCount,
+    activeAgentCount: activeAgentIds.size,
+    totalCostUsd,
+    totalSessions: allSessions.length,
+  };
+}

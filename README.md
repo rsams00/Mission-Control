@@ -24,11 +24,10 @@ independently of stage status, so context carries across the whole project lifet
 
 ## Status
 
-**Phase 3 — Tier B office view: done.** Every project now has an `/office` view — rooms per
-stage, agent sprites, a live activity log — built directly on top of Phase 2's dashboard
-state, still $0. Phase 2.1 (dashboard UX refinement, queued after Phase 2's first
-click-through) is still outstanding — Phase 3 was pulled forward ahead of it at the user's
-explicit request. Phase 4 (Parallelism) is next.
+**Phase 2.1 — Dashboard UX refinement: done.** Full visual overhaul of Tier A (new
+charcoal + orange/amber palette, a real cross-project home page, persistent per-project
+tabs, a floating project-scoped chat widget, two-column detail layout) plus real sprite art
+in Tier B, replacing the placeholder badges. Phase 4 (Parallelism) is next.
 
 ### Cost policy
 
@@ -114,26 +113,48 @@ scripts.
   show → roster page → chat with an agent → confirm the mock reply round-trips. No console
   errors. `pnpm typecheck` and `pnpm lint` pass clean across all 4 packages.
 
-### Phase 2.1 — Dashboard UX refinement — outstanding
+### Phase 2.1 — Dashboard UX refinement — done
 
-Still queued, not built — Phase 3 was pulled forward ahead of it at the user's request.
+Built after Phase 3 (pulled forward at the user's request), once real usage on the user's
+own machine surfaced concrete presentation feedback — plus a second round after seeing
+design references the user provided. Presentation only, no state-machine/schema changes.
 
-Feedback from the first real click-through on the user's own machine, queued ahead of
-Phase 3. Phase 2's dashboard is functionally complete — this pass fixes presentation, not
-mechanics:
-
-- **Layout density**: the fixed 6xl content column and default spacing read cramped on a
-  real monitor — widen the layout, give sections more room
-- **Palette**: flat near-black background reads as unfinished rather than deliberate — add
-  tonal depth (secondary/tertiary surfaces, elevation) within the dark theme, not a
-  departure from it
-- **Touch targets**: secondary controls like the Roster button are undersized relative to
-  their importance
-- **Navigation**: replace one-off links between Overview/Roster/Chat with a persistent
-  per-project tab bar
-- **Landing page**: split the always-open "create project" form out of `/projects` into its
-  own entry point, so the list can be a clean landing rather than a list with a form
-  permanently pinned above it
+- **Palette overhaul** (`globals.css`, all Tier A UI primitives): replaced the original
+  navy/cyan theme with a warm charcoal base (`#121110`) and a single vivid orange/amber
+  accent (`#ff7a29`), directly following reference designs the user provided. Every
+  component reads the change automatically since they're all built on semantic tokens
+  (`bg-surface`, `text-ink-muted`, etc.) rather than hardcoded colors — confirmed via a
+  repo-wide grep for stray hex values before starting. Tier B (office view) is untouched by
+  design, per the earlier decision to keep it visually distinct.
+- **Home page** (`src/app/page.tsx`, new): a real cross-project landing page, separate from
+  `/projects` (which stays a pure list + create form) per explicit instruction. Five stat
+  tiles (projects, awaiting your approval, shipped, agents active, cost — all live queries,
+  not placeholders), a "needs your attention" list across every project, a pipeline-shape
+  bar chart, and a cross-project recent-activity feed.
+- **Persistent tab bar** (`src/app/projects/[id]/layout.tsx`, `components/project-tabs.tsx`):
+  Overview / Roster / Office as real tabs with active-state highlighting, replacing the old
+  one-off "Roster" / "Office" link buttons that were duplicated on every page. The shared
+  layout also now owns the project header (name, idea, stage badge) so child pages don't
+  repeat it.
+- **Floating chat widget** (`components/chat-widget.tsx`): project-scoped only — mounted in
+  the project layout, so it never appears on the home page or `/projects`, per explicit
+  instruction. Launcher → agent picker → inline thread, backed by a new
+  `getChatMessagesAction` server action so the picker can load a thread on demand without a
+  full page navigation. The dedicated `/chat/[agentId]` page stays alive underneath for
+  direct links, unchanged in substance.
+- **Two-column detail page**: pipeline + deliverable review as the main column, a live
+  roster snapshot (status + last activity, links straight into chat) as a persistent
+  sidebar.
+- **Real sprite art**: the user's 14 hand-drawn character sheets (front/side/back
+  turnarounds) were cropped to isolate the front-facing pose (`sharp`, per-image tuned crop
+  regions — layouts weren't uniform enough for one generic crop), then assigned to all 13
+  roles — two by an exact filename/agent-name coincidence (`finn`→Support, `iris`→Frontend),
+  the rest by visual fit. They replace the placeholder icon badges in the office view
+  automatically, no code changes, per the pluggable design from Phase 3.
+- **Verified**: production build, and a full headless-browser click-through — home page,
+  `/projects` as a genuinely separate page, two-column detail view, all three tabs, the
+  chat widget end to end (open → pick agent → send → mock reply renders), real sprites
+  rendering in the office view. `pnpm typecheck` and `pnpm lint` clean.
 
 ### Phase 3 — Tier B office view — done
 
@@ -183,15 +204,19 @@ support ongoing iteration with full history preserved per cycle.
 ```
 apps/
   web/                   Next.js (App Router) — the Tier A dashboard
-    src/app/globals.css     dark mission-control design tokens (colors, type, per-role)
-    src/app/projects/       routes: list+create, detail, roster, chat, office (Tier B)
-    public/sprites/          drop-in agent PNGs, see the README in that folder
-    src/components/          StagePipeline, DeliverableViewer, ApprovalControls, ChatPanel,
-                              OfficeRoom, AgentSprite (server-rendered, fs-based fallback),
-                              ui/ (Button, Card, Badge, Textarea — hand-written shadcn-style)
-    src/lib/data.ts          Server Component data access (reads @mission-control/db)
-    src/lib/actions.ts       Server Actions (calls @mission-control/orchestrator)
-    src/lib/agent-identity.ts  per-role color + icon, used across roster/chat/pipeline/office
+    src/app/page.tsx         home page — portfolio stats, needs-attention, activity, distribution
+    src/app/globals.css      charcoal + orange/amber design tokens (Rev. 4, Phase 2.1)
+    src/app/projects/        /projects (list+create, separate from home) and /projects/[id]/*
+      [id]/layout.tsx           shared header, ProjectTabs, ChatWidget — wraps all child routes
+      [id]/office/              Tier B — untouched by the Phase 2.1 palette overhaul
+    public/sprites/           real per-role character art (14 sheets, cropped + assigned)
+    src/components/           StagePipeline, DeliverableViewer, ApprovalControls, ChatPanel,
+                               ChatWidget (floating, project-scoped), ProjectTabs, StatTile,
+                               OfficeRoom, AgentSprite (server-rendered, fs-based fallback),
+                               ui/ (Button, Card, Badge, Textarea — hand-written shadcn-style)
+    src/lib/data.ts           Server Component data access (reads @mission-control/db)
+    src/lib/actions.ts        Server Actions (calls @mission-control/orchestrator)
+    src/lib/agent-identity.ts   per-role color + icon, used across roster/chat/pipeline/office
 packages/
   orchestrator/          Long-running Node/TS process — roster, state machine, sessions
     src/roster.ts           13-role roster config + idempotent seeding
@@ -238,13 +263,15 @@ pnpm db:migrate    # apply migrations
 ### Try the dashboard (mock mode, $0)
 
 ```bash
-pnpm dev   # http://localhost:3000 — redirects to /projects
+pnpm dev   # http://localhost:3000 — the home page (portfolio overview)
 ```
 
-Create a project, watch Idea start automatically, approve or reject each stage's
-deliverable, browse the roster, chat with any agent, then hit **Office** to see the Tier B
-room view of the same project. Every session behind this is mock — the header's
-"mock mode" badge is always visible as a reminder. Nothing here calls the real Agent SDK.
+The home page shows stats, what needs your approval, and recent activity across every
+project. Click **Projects** to create one — Idea starts automatically. From inside a
+project, use the **Overview / Roster / Office** tabs to move around, and the chat bubble
+(bottom-right) to message any agent without leaving the page. Every session behind this is
+mock — the header's "mock mode" badge is always visible as a reminder. Nothing here calls
+the real Agent SDK.
 
 To add real sprite art: drop PNGs named `<role>.png` (see
 `apps/web/public/sprites/README.md` for the exact role slugs) into that folder and reload —

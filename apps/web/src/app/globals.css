@@ -1,36 +1,38 @@
 @import "tailwindcss";
 
 /*
- * Mission Control — dark-only mission-control theme (Rev. 3 decision).
- * Deep navy/graphite base, telemetry-cyan accent, monospace reserved for
- * labels/data, per-role identity applied via data-role on AgentBadge.
+ * Mission Control — Tier A theme, Rev. 4 (Phase 2.1 overhaul).
+ * Warm near-black charcoal (not navy-tinted) + a single vivid orange/amber
+ * accent, per the user's reference direction. Tier B (office view) is
+ * intentionally untouched — it keeps its own distinct plum/amber palette,
+ * scoped locally to that page.
  */
 :root {
-  --color-bg: #0a0e14;
-  --color-surface: #111826;
-  --color-surface-raised: #161f2e;
-  --color-ink: #e7ecf3;
-  --color-ink-muted: #90a0b2;
-  --color-border: #1b2530;
-  --color-accent: #4fe0d3;
-  --color-accent-ink: #04211e;
-  --color-success: #3ddc84;
+  --color-bg: #121110;
+  --color-surface: #1a1815;
+  --color-surface-raised: #242019;
+  --color-ink: #f5f1ea;
+  --color-ink-muted: #a89f92;
+  --color-border: #322c25;
+  --color-accent: #ff7a29;
+  --color-accent-ink: #1a0f04;
+  --color-success: #5fd67a;
   --color-warning: #e3a83b;
-  --color-critical: #e2685f;
+  --color-critical: #ef5b52;
 
   /* Per-role identity — fixed across chat, roster, and the pipeline. */
-  --role-orchestrator: #9b8cff;
-  --role-product: #4fe0d3;
-  --role-architect: #62a9ff;
+  --role-orchestrator: #b09bff;
+  --role-product: #ff7a29;
+  --role-architect: #6cb2ff;
   --role-backend: #6fd67a;
-  --role-frontend: #f2b84b;
+  --role-frontend: #f2c04b;
   --role-qa: #f2716b;
-  --role-docs: #b6bfca;
+  --role-docs: #c7bcac;
   --role-researcher: #8cc7ff;
   --role-designer: #e18de0;
-  --role-devops: #7fdbc2;
+  --role-devops: #6fd6b8;
   --role-security: #ff8c66;
-  --role-growth: #d6d15a;
+  --role-growth: #d6c95a;
   --role-support: #9ad1ff;
 }
 
@@ -72,4 +74,10 @@ a {
 
 ::selection {
   background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+/* Big stat numbers (home page tiles) — always tabular so digits don't jitter. */
+.stat-number {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }

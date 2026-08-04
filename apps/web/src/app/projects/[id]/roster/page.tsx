@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getProject, getProjectRoster, getLatestSessionsByAgent } from "@/lib/data";
 import { AGENT_IDENTITY } from "@/lib/agent-identity";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, MessageCircle, Gamepad2 } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 
 export default async function RosterPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -19,26 +19,8 @@ export default async function RosterPage({ params }: { params: Promise<{ id: str
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <Link
-          href={`/projects/${id}`}
-          className="flex items-center gap-1 text-xs text-ink-muted hover:text-ink"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          {project.name}
-        </Link>
-        <div className="mt-3 flex items-center justify-between">
-          <div>
-            <p className="font-mono text-xs uppercase tracking-widest text-ink-muted">Roster</p>
-            <h1 className="mt-1 text-2xl font-semibold text-ink">Your AI team</h1>
-          </div>
-          <Link
-            href={`/projects/${id}/office`}
-            className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-ink-muted hover:text-ink"
-          >
-            <Gamepad2 className="h-3.5 w-3.5" />
-            Office
-          </Link>
-        </div>
+        <p className="font-mono text-xs uppercase tracking-widest text-ink-muted">Roster</p>
+        <h2 className="mt-1 text-xl font-semibold text-ink">Your AI team</h2>
       </div>
 
       <section>

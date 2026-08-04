@@ -1,10 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { STAGE_TYPES, type StageType } from "@mission-control/shared";
 import { STAGE_ROLES } from "@mission-control/orchestrator";
 import { getProject, getProjectRoster, getActiveStage, getRecentActivity } from "@/lib/data";
 import { OfficeRoom } from "@/components/office-room";
-import { ArrowLeft } from "lucide-react";
 
 const ROOM_LABEL: Record<StageType, string> = {
   idea: "Briefing Room — Idea",
@@ -47,19 +45,15 @@ export default async function OfficePage({ params }: { params: Promise<{ id: str
 
   return (
     <div
-      className="office-shell -mx-6 flex flex-col gap-6 rounded-2xl border p-6"
+      className="office-shell flex flex-col gap-6 rounded-2xl border p-6"
       style={{ ...officeTheme, borderColor: "var(--color-border)", background: "var(--color-bg)", color: "var(--color-ink)" }}
     >
       <div className="flex items-center justify-between">
         <div>
-          <Link href={`/projects/${id}`} className="flex items-center gap-1 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            <ArrowLeft className="h-3.5 w-3.5" />
-            {project.name}
-          </Link>
-          <p className="mt-2 font-mono text-xs uppercase tracking-widest" style={{ color: "var(--color-ink-muted)" }}>
+          <p className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--color-ink-muted)" }}>
             Agent Office
           </p>
-          <h1 className="text-xl font-semibold">{project.name}</h1>
+          <h2 className="mt-1 text-lg font-semibold">{project.name}</h2>
         </div>
         <span
           className="rounded-full border px-3 py-1 font-mono text-[0.68rem] uppercase tracking-wide"

@@ -29,10 +29,9 @@ export default async function ChatPage({
         </Link>
         <div className="mt-3 flex items-center gap-2">
           <identity.Icon className="h-5 w-5" style={{ color: `var(${identity.color})` }} strokeWidth={1.75} />
-          <h1 className="text-2xl font-semibold text-ink">{agent.name}</h1>
+          <h2 className="text-xl font-semibold text-ink">{agent.name}</h2>
           <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">{identity.label}</span>
         </div>
-        <p className="mt-1 text-sm text-ink-muted">{project.name}</p>
       </div>
 
       <ChatPanel projectId={id} agentId={agentId} initialMessages={messages} />
