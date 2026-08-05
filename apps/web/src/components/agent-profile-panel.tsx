@@ -5,17 +5,17 @@ import Link from "next/link";
 import { X } from "lucide-react";
 import { AGENT_IDENTITY } from "@/lib/agent-identity";
 import { getAgentProfileAction } from "@/lib/actions";
-import { AGENT_TRAIT_KEYS, type AgentRole } from "@mission-control/shared";
+import type { AgentRole } from "@mission-control/shared";
 import { AgentMarkerVisual } from "@/components/agent-marker-visual";
+import { TraitRings } from "@/components/trait-rings";
+import { StatusDot } from "@/components/status-dot";
 
 type Profile = Awaited<ReturnType<typeof getAgentProfileAction>>;
 
-const TRAIT_LABEL: Record<string, string> = {
-  speed: "Speed",
-  precision: "Precision",
-  creativity: "Creativity",
-  reliability: "Reliability",
-  autonomy: "Autonomy",
+const PRESENCE_TEXT: Record<Profile["presence"], string> = {
+  active: "Session running",
+  waiting: "Awaiting your approval",
+  idle: "Idle — in the Lounge",
 };
 
 /**
@@ -49,11 +49,11 @@ export function AgentProfilePanel({
       <button
         aria-label="Close profile"
         onClick={onClose}
-        className="absolute inset-0 bg-black/50"
+        className="panel-backdrop-in absolute inset-0 bg-black/50"
         style={{ cursor: "default" }}
       />
       <div
-        className="relative flex h-full w-full max-w-sm flex-col overflow-y-auto border-l shadow-2xl"
+        className="panel-slide-in relative flex h-full w-full max-w-sm flex-col overflow-y-auto border-l shadow-2xl"
         style={{ background: "var(--color-surface)", borderColor: "var(--color-border)" }}
       >
         <div className="flex items-center justify-between border-b p-4" style={{ borderColor: "var(--color-border)" }}>
@@ -85,6 +85,12 @@ export function AgentProfilePanel({
                 <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
                   {identity.label}
                 </p>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <StatusDot presence={profile.presence} pulse />
+                  <span className="text-[0.68rem]" style={{ color: "var(--color-ink-muted)" }}>
+                    {PRESENCE_TEXT[profile.presence]}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -92,24 +98,7 @@ export function AgentProfilePanel({
               <p className="mb-2 font-mono text-[0.66rem] uppercase tracking-widest" style={{ color: "var(--color-ink-muted)" }}>
                 Traits
               </p>
-              <div className="flex flex-col gap-2">
-                {AGENT_TRAIT_KEYS.map((key) => (
-                  <div key={key} className="flex items-center gap-3">
-                    <span className="w-20 shrink-0 text-xs" style={{ color: "var(--color-ink)" }}>
-                      {TRAIT_LABEL[key]}
-                    </span>
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full" style={{ background: "var(--color-surface-raised)" }}>
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${((traits[key] ?? 0) / 10) * 100}%`, background: "var(--color-accent)" }}
-                      />
-                    </div>
-                    <span className="stat-number w-5 text-right text-xs" style={{ color: "var(--color-ink-muted)" }}>
-                      {traits[key] ?? "—"}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <TraitRings traits={traits} />
             </div>
 
             <div>

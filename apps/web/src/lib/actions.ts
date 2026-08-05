@@ -10,7 +10,7 @@ import {
   mockChatReplyFor,
   MergeConflictError,
 } from "@mission-control/orchestrator";
-import { getAgent, getChatMessages, getAgentActivity } from "./data";
+import { getAgent, getChatMessages, getAgentActivity, getGlobalOfficeState } from "./data";
 
 export async function createProjectAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
@@ -84,8 +84,14 @@ export async function getChatMessagesAction(projectId: string, agentId: string) 
 }
 
 /** Lets the Office view's profile panel (a Client Component) pull one
- * agent's traits + cross-project history on demand when clicked. */
+ * agent's traits + cross-project history + live presence on demand. */
 export async function getAgentProfileAction(agentId: string) {
-  const [agentRow, activity] = await Promise.all([getAgent(agentId), getAgentActivity(agentId)]);
-  return { agent: agentRow, activity };
+  const [agentRow, activity, officeState] = await Promise.all([
+    getAgent(agentId),
+    getAgentActivity(agentId),
+    getGlobalOfficeState(),
+  ]);
+  const officeRow = officeState.find((row) => row.agent.id === agentId);
+  const presence = officeRow?.assignment?.presence ?? "idle";
+  return { agent: agentRow, activity, presence };
 }

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { StageStatusBadge } from "@/components/stage-badge";
 import { ApprovalControls } from "@/components/approval-controls";
 import { Sparkline } from "@/components/sparkline";
+import { PipelineFlow } from "@/components/pipeline-flow";
 import { FolderKanban, AlertCircle, CheckCircle2, Users, DollarSign, Plus } from "lucide-react";
 
 const STAGE_LABEL: Record<string, string> = {
@@ -132,27 +133,13 @@ export default async function HomePage() {
           <Card>
             <CardHeader>
               <CardTitle>Pipeline shape</CardTitle>
-              <CardDescription>How many projects are in each stage.</CardDescription>
+              <CardDescription>How many projects currently sit in each stage.</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-2.5">
-              {PROJECT_STAGES.map((s) => {
-                const count = distribution.get(s) ?? 0;
-                const max = Math.max(1, ...Array.from(distribution.values()));
-                return (
-                  <div key={s} className="flex items-center gap-3">
-                    <span className="w-24 shrink-0 font-mono text-xs uppercase tracking-wide text-ink-muted">
-                      {STAGE_LABEL[s]}
-                    </span>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-raised">
-                      <div
-                        className="h-full rounded-full bg-accent"
-                        style={{ width: `${(count / max) * 100}%` }}
-                      />
-                    </div>
-                    <span className="stat-number w-4 text-right text-xs text-ink-muted">{count}</span>
-                  </div>
-                );
-              })}
+            <CardContent>
+              <PipelineFlow
+                counts={PROJECT_STAGES.map((s) => distribution.get(s) ?? 0)}
+                labels={PROJECT_STAGES.map((s) => STAGE_LABEL[s] ?? s)}
+              />
             </CardContent>
           </Card>
         </div>

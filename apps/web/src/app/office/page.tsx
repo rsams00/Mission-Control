@@ -4,13 +4,13 @@ import { spriteUrlFor } from "@/components/agent-sprite";
 import { OfficeFloor, type OfficeRoomView, type RoomIconKey } from "@/components/office-floor";
 import { OFFICE_THEME } from "@/lib/office-theme";
 
-const ROOM_META: Record<StageType, { label: string; iconKey: RoomIconKey; deskCount: number }> = {
-  idea: { label: "Briefing Room — Idea", iconKey: "idea", deskCount: 4 },
-  spec: { label: "Briefing Room — Spec", iconKey: "spec", deskCount: 4 },
-  architecture: { label: "Command Center — Architecture", iconKey: "architecture", deskCount: 3 },
-  build: { label: "Workspace — Build", iconKey: "build", deskCount: 4 },
-  test: { label: "Workspace — Test", iconKey: "test", deskCount: 3 },
-  docs: { label: "Studio — Docs", iconKey: "docs", deskCount: 2 },
+const ROOM_META: Record<StageType, { label: string; iconKey: RoomIconKey }> = {
+  idea: { label: "Briefing Room — Idea", iconKey: "idea" },
+  spec: { label: "Briefing Room — Spec", iconKey: "spec" },
+  architecture: { label: "Command Center — Architecture", iconKey: "architecture" },
+  build: { label: "Workspace — Build", iconKey: "build" },
+  test: { label: "Workspace — Test", iconKey: "test" },
+  docs: { label: "Studio — Docs", iconKey: "docs" },
 };
 
 export default async function GlobalOfficePage() {
@@ -26,7 +26,7 @@ export default async function GlobalOfficePage() {
         name: row.agent.name,
         spriteUrl: spriteUrlFor(row.agent.role),
         projectName: row.assignment!.projectName,
-        stageStatus: row.assignment!.stageStatus,
+        presence: row.assignment!.presence,
       }));
 
     return {
@@ -34,7 +34,6 @@ export default async function GlobalOfficePage() {
       label: meta.label,
       iconKey: meta.iconKey,
       active: occupants.length > 0,
-      deskCount: meta.deskCount,
       variant: "desks" as const,
       occupants,
     };
@@ -48,7 +47,7 @@ export default async function GlobalOfficePage() {
       name: row.agent.name,
       spriteUrl: spriteUrlFor(row.agent.role),
       projectName: null,
-      stageStatus: null,
+      presence: "idle" as const,
     }));
 
   rooms.push({
@@ -56,7 +55,6 @@ export default async function GlobalOfficePage() {
     label: "Lounge — idle",
     iconKey: "lounge",
     active: false,
-    deskCount: 3,
     variant: "lounge",
     occupants: lounge,
   });

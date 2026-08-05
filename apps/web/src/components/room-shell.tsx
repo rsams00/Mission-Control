@@ -2,30 +2,26 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 
 /**
- * One illustrated top-down room panel for the Office view (Phase 3.1).
+ * One illustrated top-down room panel for the Office view (Phase 3.1/2.3).
  * Not literal floor-plan art (no licensed/commissioned top-down tileset
- * exists for this project) — a floor tile grid, wall border, and a row of
- * desk blocks built from CSS, styled to read as a game-room space rather
- * than a flat status card. Agent markers render on top via `children`.
+ * exists for this project) — a floor tile grid and wall border built from
+ * CSS. Occupants now carry their own desk/couch visual (OfficeAgentCard,
+ * Option A), so this shell only provides the room chrome, not furniture.
  */
 export function RoomShell({
   label,
   Icon,
   active,
-  deskCount = 3,
-  variant = "desks",
   children,
 }: {
   label: string;
   Icon: LucideIcon;
   active: boolean;
-  deskCount?: number;
-  variant?: "desks" | "lounge";
   children: ReactNode;
 }) {
   return (
     <div
-      className="relative flex min-h-[190px] flex-col overflow-hidden rounded-2xl border-2 p-0 transition-colors"
+      className="relative flex min-h-[168px] flex-col overflow-hidden rounded-2xl border-2 p-0 transition-colors"
       style={{
         borderColor: active ? "var(--color-accent)" : "var(--color-border)",
         boxShadow: active
@@ -46,26 +42,7 @@ export function RoomShell({
         }}
       />
 
-      {/* desks / furniture row */}
-      <div className="relative flex gap-2 px-4 pt-4">
-        {Array.from({ length: deskCount }).map((_, i) =>
-          variant === "lounge" ? (
-            <div
-              key={i}
-              className="h-6 flex-1 rounded-full border"
-              style={{ borderColor: "var(--color-border)", background: "var(--color-surface-raised)" }}
-            />
-          ) : (
-            <div
-              key={i}
-              className="h-7 flex-1 rounded-md border"
-              style={{ borderColor: "var(--color-border)", background: "var(--color-surface-raised)" }}
-            />
-          ),
-        )}
-      </div>
-
-      <div className="relative flex items-center gap-1.5 px-4 pt-3">
+      <div className="relative flex items-center gap-1.5 px-4 pt-4">
         <Icon className="h-3.5 w-3.5" style={{ color: active ? "var(--color-accent)" : "var(--color-ink-muted)" }} strokeWidth={2} />
         <p
           className="font-mono text-[0.66rem] uppercase tracking-widest"

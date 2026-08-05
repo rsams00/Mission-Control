@@ -191,11 +191,14 @@ export async function getPortfolioStats() {
   };
 }
 
+export type OfficePresence = "active" | "waiting" | "idle";
+
 export interface OfficeAssignment {
   projectId: string;
   projectName: string;
   stageType: StageType;
   stageStatus: string;
+  presence: OfficePresence;
 }
 
 /**
@@ -204,10 +207,19 @@ export interface OfficeAssignment {
  * "active" on more than one project at once — possible in principle, even
  * though today's usage is one project at a time — the most recently
  * started stage wins; that's the room they're shown in.
+ *
+ * A room occupant is now derived from `in_progress` stages too, not just
+ * `awaiting_approval`/`needs_revision` — a stage genuinely running sessions
+ * is when an agent should first appear in their room, not only once their
+ * output is sitting there awaiting your review. `presence` distinguishes
+ * "active" (a session is actually running right now) from "waiting"
+ * (sessions finished, the stage is sitting in your approval queue) — mock
+ * sessions resolve in ~150ms so "active" will rarely be observed today,
+ * but the distinction is real and ready for when sessions take longer.
  */
 export async function getGlobalOfficeState() {
   await ensureSeeded();
-  const [allAgents, activeStageRows] = await Promise.all([
+  const [allAgents, occupiedStageRows] = await Promise.all([
     db.select().from(agent).orderBy(agent.role),
     db
       .select({ stage, project })
@@ -216,19 +228,32 @@ export async function getGlobalOfficeState() {
       .orderBy(desc(stage.startedAt)),
   ]);
 
-  const relevant = activeStageRows.filter(
-    (r) => r.stage.status === "awaiting_approval" || r.stage.status === "needs_revision",
+  const relevant = occupiedStageRows.filter((r) =>
+    ["in_progress", "awaiting_approval", "needs_revision"].includes(r.stage.status),
   );
 
+  const runningSessionRows =
+    relevant.length === 0
+      ? []
+      : await db
+          .select({ agentId: session.agentId, stageId: session.stageId })
+          .from(session)
+          .where(and(eq(session.status, "running")));
+  const runningKeys = new Set(runningSessionRows.map((r) => `${r.stageId}:${r.agentId}`));
+
+  const agentByRole = new Map(allAgents.map((a) => [a.role, a]));
   const assignmentByRole = new Map<string, OfficeAssignment>();
   for (const { stage: s, project: p } of relevant) {
     for (const role of STAGE_ROLES[s.type]) {
       if (assignmentByRole.has(role)) continue; // already claimed by a more-recent stage
+      const roleAgent = agentByRole.get(role);
+      const isRunning = roleAgent ? runningKeys.has(`${s.id}:${roleAgent.id}`) : false;
       assignmentByRole.set(role, {
         projectId: p.id,
         projectName: p.name,
         stageType: s.type,
         stageStatus: s.status,
+        presence: isRunning ? "active" : "waiting",
       });
     }
   }

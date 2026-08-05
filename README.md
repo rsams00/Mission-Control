@@ -24,13 +24,13 @@ independently of stage status, so context carries across the whole project lifet
 
 ## Status
 
-**Phase 2.2 + 3.1 (combined push) — done.** Tier A got a visual depth pass (textured
-background, elevated cards, a real session-activity sparkline) and the home page's
-"needs your attention" list became an actionable approval inbox with inline Approve/Reject.
-Tier B was rebuilt from a per-project tab into a single global Office view at `/office`
-showing every agent across every project at once, each placed in the room matching what
-they're actively doing — plus a new RPG-style agent profile panel (traits, cross-project
-session history, chat link). Phase 5 (the Shipped→Spec loop) is next.
+**Phase 2.3 — telemetry-dashboard visual pass — done.** A second design pass on top of
+2.2 + 3.1, after user feedback that the flat desk blocks in Office and the still-plain
+charts didn't read as "depth" yet. Baseline sizing fixed app-wide (no more manual browser
+zoom), a secondary data-viz gradient now drives radial trait gauges and a flow-styled
+pipeline chart, and every Office room occupant is a personalized card (portrait + role-prop
+icon + live status dot) instead of a flat rectangle, with a glowing connector line between
+agents sharing a room. Phase 5 (the Shipped→Spec loop) is next.
 
 ### Cost policy
 
@@ -299,6 +299,75 @@ profile panel opens with real trait/history data, and approving a stage inline f
 page's inbox performs the same real merge-to-main as the project page and advances the stage
 — confirmed via the project page reflecting Test afterward, no console errors.
 
+### Phase 2.3 — telemetry-dashboard visual pass — done
+
+Follow-up design pass after direct feedback on the Phase 2.2 + 3.1 result: the app's
+baseline sizing read small at 100% browser zoom, and Office's flat desk-block rectangles
+didn't deliver the "depth" the palette/texture work promised. Driven by two references
+the user provided — an F1 telemetry dashboard and a SecurityScorecard live-data page
+("Declawed") — for how dense data surfaces can feel alive instead of flat.
+
+- **Baseline sizing, fixed globally, not per-user**: `html { font-size: 18px }` in
+  `globals.css` (was the 16px browser default). Nearly everything in this app is sized in
+  Tailwind's `rem` units, so this one change scales text, spacing, and icons uniformly
+  everywhere — "baked-in ~112% zoom" as the real default, with no browser zoom required
+  from anyone opening the app.
+- **Secondary data-viz gradient** (`--viz-1..4` in `globals.css`, coral → pink → purple →
+  cyan): reserved strictly for charts, gauges, and glow effects. Never used for buttons,
+  text, or general UI chrome — those stay on the single accent per tier, unchanged. A
+  second, narrower palette layered on top, not a replacement.
+- **Radial ring trait gauges** (`TraitRings`): the profile panel's 5 flat progress bars
+  became 5 concentric SVG rings, each in its own gradient color with a soft glow —
+  directly modeled on the reference's radial gauge panel.
+- **Pipeline shape as a flow-styled chart** (`PipelineFlow`): replaced the flat stage-count
+  bar list with a smooth gradient area/line chart across the 7 stages. Deliberately *not* a
+  literal Sankey/funnel — the underlying data is each project's current stage, not a
+  historical flow-through count, so a converging funnel would overstate what the numbers
+  mean. The flow *language* (gradient fill, glowing nodes, smooth curves) is borrowed
+  without borrowing a data semantic that isn't true.
+- **Office rooms rebuilt as personalized workstation cards** (`OfficeAgentCard`, per a
+  third reference showing themed per-employee desk vignettes): every room occupant is now
+  a small card — portrait, a themed "desk prop" using that role's already-established icon
+  and color from `agent-identity.ts` (Docs → book, Security → shield, QA → flask, and so
+  on — no new art commissioned, just a smarter reuse of icons already in the codebase), a
+  name, and a live status dot — replacing the flat, low-contrast desk-block rectangles from
+  3.1. Idle agents in the Lounge get the same card with a pill-shaped "couch" instead of a
+  desk.
+- **Three-state live status** (`getGlobalOfficeState`, `StatusDot`): green "active" (a
+  session is genuinely running right now), amber "waiting" (sessions finished, the stage
+  is sitting in the approval queue), or neutral "idle" (Lounge) — not red, which stays
+  reserved for `--color-critical` real errors elsewhere. This closed a real gap in the
+  Phase 3.1 query: it previously only recognized `awaiting_approval`/`needs_revision`
+  stages, meaning an agent whose stage was still `in_progress` (mid-session) wouldn't
+  appear in *any* room. `getGlobalOfficeState` now also matches `in_progress` stages and
+  cross-references the `session` table for a real running session, so "active" is a real,
+  observable state — it just resolves almost instantly in mock mode, same as everywhere
+  else the mock-vs-real distinction shows up.
+- **Collaboration connector**: a thin glowing line (data-viz gradient) between two agent
+  cards sharing a room right now (e.g. Backend + Frontend both in Build) — a lightweight
+  version of the network-graph idea from the Declawed reference, without building a full
+  separate graph visualization.
+- **Office background depth**: the same layered-glow technique from the Tier A pass,
+  reworked with a faint node/line network texture (per the Declawed reference) instead of
+  a dot-grid, scoped to `.office-shell` rather than the full viewport since it's a nested
+  panel, not the page background.
+- **Restrained motion**: a gentle pulse on "active" status dots only (the one state that's
+  genuinely time-sensitive), plus a single slide/fade entrance for the profile panel — both
+  respect `prefers-reduced-motion`. Nothing else in this pass animates.
+
+**Design process**: two rough comparison mockups (not production code) were built and
+shown to the user before implementation — one comparing "cards replace desk blocks inside
+each room" vs. "a separate directory view" (Option A was chosen), rendered with the actual
+sprite PNGs embedded so the comparison used real art, not placeholders.
+
+**Verified**: `pnpm typecheck`, `pnpm lint`, and a full production build all pass clean.
+A headless-browser pass confirmed: the flow chart and trait rings render with real data,
+creating a project and advancing to Build shows Rex and Iris together in the Build room
+with the connector line and correct amber "waiting" status, the profile panel's status
+dot and rings match, and approving Build from the project page still performs a real
+git merge and advances the stage — confirmed both through the UI and directly via
+`git log --graph --all` on the project's own repo. No console errors.
+
 ### Phase 5 — The loop — planned
 
 `Shipped → Spec` inserts a new stage row with `cycle = previous + 1`, so shipped projects
@@ -318,7 +387,10 @@ apps/
     public/sprites/           real per-role character art (14 sheets, cropped + assigned)
     src/components/           StagePipeline, DeliverableViewer, ApprovalControls, ChatPanel,
                                ChatWidget (floating, project-scoped), ProjectTabs, StatTile,
-                               Sparkline, RoomShell, OfficeFloor, AgentProfilePanel,
+                               Sparkline, PipelineFlow (flow-styled pipeline chart, Phase 2.3),
+                               RoomShell, OfficeFloor, OfficeAgentCard (Option A workstation
+                               cards, Phase 2.3), TraitRings (radial gauges), StatusDot
+                               (shared active/waiting/idle indicator), AgentProfilePanel,
                                AgentMarkerVisual (client-safe sprite lookup, see Phase 3.1 notes),
                                OfficeRoom, AgentSprite (server-rendered, fs-based fallback),
                                ui/ (Button, Card, Badge, Textarea — hand-written shadcn-style)

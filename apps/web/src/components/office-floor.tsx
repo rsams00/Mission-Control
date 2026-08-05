@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { Lightbulb, FileText, Compass, Hammer, FlaskConical, BookText, Sofa } from "lucide-react";
 import { RoomShell } from "@/components/room-shell";
-import { AgentMarkerVisual } from "@/components/agent-marker-visual";
+import { OfficeAgentCard, type OfficeCardData } from "@/components/office-agent-card";
 import { AgentProfilePanel } from "@/components/agent-profile-panel";
-import type { AgentRole } from "@mission-control/shared";
 
 // Icon components aren't serializable across the Server -> Client boundary,
 // so the page passes a key string and this map resolves it client-side.
@@ -20,62 +19,51 @@ export const ROOM_ICON = {
 } as const;
 export type RoomIconKey = keyof typeof ROOM_ICON;
 
-export interface OfficeAgentView {
-  id: string;
-  role: AgentRole;
-  name: string;
-  spriteUrl: string | null;
-  projectName: string | null;
-  stageStatus: string | null;
-}
-
 export interface OfficeRoomView {
   key: string;
   label: string;
   iconKey: RoomIconKey;
   active: boolean;
-  deskCount: number;
   variant: "desks" | "lounge";
-  occupants: OfficeAgentView[];
+  occupants: OfficeCardData[];
 }
 
 export function OfficeFloor({ rooms }: { rooms: OfficeRoomView[] }) {
-  const [selected, setSelected] = useState<OfficeAgentView | null>(null);
+  const [selected, setSelected] = useState<OfficeCardData | null>(null);
 
   return (
     <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {rooms.map((room) => (
-          <RoomShell
-            key={room.key}
-            label={room.label}
-            Icon={ROOM_ICON[room.iconKey]}
-            active={room.active}
-            deskCount={room.deskCount}
-            variant={room.variant}
-          >
+          <RoomShell key={room.key} label={room.label} Icon={ROOM_ICON[room.iconKey]} active={room.active}>
             {room.occupants.length === 0 ? (
               <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
                 —
               </p>
             ) : (
-              room.occupants.map((o) => (
-                <button
-                  key={o.id}
-                  onClick={() => setSelected(o)}
-                  className="flex flex-col items-center gap-1 rounded-lg p-1 transition-transform hover:scale-105"
-                >
-                  <AgentMarkerVisual role={o.role} spriteUrl={o.spriteUrl} size={48} />
-                  <span className="max-w-[68px] truncate text-center text-[0.68rem]" style={{ color: "var(--color-ink)" }}>
-                    {o.name}
-                  </span>
-                  {o.projectName && (
-                    <span className="max-w-[68px] truncate text-center text-[0.6rem]" style={{ color: "var(--color-ink-muted)" }}>
-                      {o.projectName}
-                    </span>
-                  )}
-                </button>
-              ))
+              <div className="relative flex w-full items-start gap-3">
+                {/* Collaboration cue: a thin glowing connector between two
+                    agents sharing a room right now — reads as "working
+                    together," not just "coincidentally in the same room." */}
+                {room.occupants.length === 2 && (
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute left-[104px] top-7 h-px w-3"
+                    style={{
+                      background: "linear-gradient(90deg, var(--viz-2), var(--viz-3))",
+                      boxShadow: "0 0 6px color-mix(in srgb, var(--viz-3) 60%, transparent)",
+                    }}
+                  />
+                )}
+                {room.occupants.map((o) => (
+                  <OfficeAgentCard
+                    key={o.id}
+                    data={o}
+                    onSelect={setSelected}
+                    variant={room.variant === "lounge" ? "couch" : "desk"}
+                  />
+                ))}
+              </div>
             )}
           </RoomShell>
         ))}

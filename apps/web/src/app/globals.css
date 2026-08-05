@@ -34,6 +34,19 @@
   --role-security: #ff8c66;
   --role-growth: #d6c95a;
   --role-support: #9ad1ff;
+
+  /*
+   * Secondary data-viz gradient (2.3 visual pass) — reserved strictly for
+   * charts, gauges, and glow effects (gauges, flow diagrams, connector
+   * lines). Never used for buttons, text, or general UI chrome, which stay
+   * on the single per-tier accent — this is a second, narrower palette
+   * layered on top, not a replacement.
+   */
+  --viz-1: #ff6a4d;
+  --viz-2: #ff3d94;
+  --viz-3: #a855f7;
+  --viz-4: #22d3ee;
+  --viz-gradient: linear-gradient(90deg, var(--viz-1), var(--viz-2), var(--viz-3), var(--viz-4));
 }
 
 @theme {
@@ -58,6 +71,13 @@
 
 html {
   color-scheme: dark;
+  /*
+   * Baseline sizing fix: nearly everything in this app is sized in rem, so
+   * bumping the root font-size scales text, spacing, and icons uniformly
+   * everywhere — "baked-in ~112% zoom" as the real default, not something
+   * every visitor has to dial in themselves via browser zoom.
+   */
+  font-size: 18px;
 }
 
 /*
@@ -113,4 +133,81 @@ a {
 .stat-number {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
+}
+
+/*
+ * Office view depth (2.3): same layered-background idea as the body's, but
+ * confined to the .office-shell panel (not fixed to the viewport, since
+ * this is a nested rounded container, not the page background) and using
+ * a network/node line texture instead of a dot-grid, per the Declawed
+ * telemetry-dashboard reference. Reads as depth, not decoration — subtle
+ * by design, like the Tier A pass.
+ */
+.office-shell {
+  position: relative;
+  overflow: hidden;
+}
+
+.office-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 900px 500px at 15% -10%, color-mix(in srgb, var(--color-accent) 12%, transparent), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 100% 20%, color-mix(in srgb, var(--role-orchestrator, #b09bff) 8%, transparent), transparent 65%);
+}
+
+.office-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cg fill='none' stroke='%23f3ead9' stroke-width='0.6' opacity='0.16'%3E%3Cpath d='M10 20 L60 10 L110 40 M60 10 L70 90 M110 40 L130 120 M10 20 L30 100'/%3E%3C/g%3E%3Cg fill='%23f3ead9' opacity='0.22'%3E%3Ccircle cx='10' cy='20' r='1.6'/%3E%3Ccircle cx='60' cy='10' r='1.6'/%3E%3Ccircle cx='110' cy='40' r='1.6'/%3E%3Ccircle cx='70' cy='90' r='1.6'/%3E%3Ccircle cx='130' cy='120' r='1.6'/%3E%3Ccircle cx='30' cy='100' r='1.6'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 220px 220px;
+}
+
+.office-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Restrained motion (2.3): a gentle pulse on "active" status dots only —
+   the one place motion earns its keep, signaling a session genuinely
+   running right now. Everything else in this pass stays static. */
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(1.35); }
+}
+.status-dot-pulse {
+  animation: status-pulse 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .status-dot-pulse {
+    animation: none;
+  }
+}
+
+/* Slide-over panel entrance (agent profile) — one deliberate moment, not
+   scattered effects. Backdrop fades, panel slides in from the edge. */
+@keyframes panel-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes panel-slide-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.panel-backdrop-in {
+  animation: panel-backdrop-in 180ms ease-out;
+}
+.panel-slide-in {
+  animation: panel-slide-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel-backdrop-in,
+  .panel-slide-in {
+    animation: none;
+  }
 }
