@@ -24,13 +24,14 @@ independently of stage status, so context carries across the whole project lifet
 
 ## Status
 
-**Phase 2.3 — telemetry-dashboard visual pass — done.** A second design pass on top of
-2.2 + 3.1, after user feedback that the flat desk blocks in Office and the still-plain
-charts didn't read as "depth" yet. Baseline sizing fixed app-wide (no more manual browser
-zoom), a secondary data-viz gradient now drives radial trait gauges and a flow-styled
-pipeline chart, and every Office room occupant is a personalized card (portrait + role-prop
-icon + live status dot) instead of a flat rectangle, with a glowing connector line between
-agents sharing a room. Phase 5 (the Shipped→Spec loop) is next.
+**Phase 2.3 (+ fix pass) — telemetry-dashboard visual pass — done.** A second design pass
+on top of 2.2 + 3.1, after user feedback that the flat desk blocks in Office and the
+still-plain charts didn't read as "depth" yet. Baseline sizing fixed app-wide, a secondary
+data-viz gradient now drives radial trait gauges and a flow-styled pipeline chart, and every
+Office room occupant is a personalized card (portrait + role-prop icon + live status dot)
+instead of a flat rectangle. A follow-up fix pass then corrected four issues found on first
+real click-through — including a real CSS cascade-layer bug that silently broke the profile
+modal's positioning. Phase 5 (the Shipped→Spec loop) is next.
 
 ### Cost policy
 
@@ -367,6 +368,57 @@ with the connector line and correct amber "waiting" status, the profile panel's 
 dot and rings match, and approving Build from the project page still performs a real
 git merge and advances the stage — confirmed both through the UI and directly via
 `git log --graph --all` on the project's own repo. No console errors.
+
+#### Fix pass — four issues from first real click-through
+
+The user's first real click-through of 2.3 surfaced four problems the headless-browser
+verification hadn't caught (mostly layout issues that only show up with realistic content
+volume and at real scroll positions, which scripted single-scenario tests don't naturally
+exercise):
+
+- **Pipeline chart unreadable**: it was boxed into a 1/3-width sidebar column, too narrow
+  for 7 labeled nodes. Fixed by pulling it into its own full-width card. While fixing this,
+  found the deeper cause of why it read as small even before that: the SVG had a fixed
+  pixel `height` alongside `width="100%"` — with no matching height scaling, the browser's
+  default `preserveAspectRatio` behavior kept it rendered at its native size regardless of
+  container width. Replaced with an aspect-ratio wrapper so both dimensions scale together.
+- **Profile panel awkwardly docked**: switched from a fixed right-edge slide-over (which
+  required scrolling to reach if opened from far down the page) to a centered modal that's
+  always fully visible on open, with a scale/fade entrance instead of a horizontal slide.
+- **Lounge clipping occupants**: a real bug — the room container needs `overflow: hidden`
+  for its floor-texture pseudo-elements, but the occupant-card wrapper was missing
+  `flex-wrap`, so agents beyond the first row were silently clipped instead of wrapping.
+  Fixed the wrap, and gave Lounge a full-width row (it can hold every idle role at once,
+  far more than any stage room).
+- **Tier A background shift**: per direct request, Tier A's neutrals (`--color-bg`,
+  `--color-surface`, `--color-surface-raised`, `--color-border`) moved from charcoal toward
+  the same purple-tinted dark Office uses, so the two tiers read as siblings. The orange
+  accent and all semantic colors (success/warning/critical) are unchanged — this is a
+  neutral-hue shift, not a palette merge.
+
+**A real bug found during the fix, not from user feedback**: while fixing the profile
+modal, discovered its `position: fixed` was silently being overridden to `position:
+relative`. Root cause: `.office-shell > * { position: relative; z-index: 1; }` (added for
+the Office depth-pass pseudo-elements) is unlayered plain CSS, and unlayered CSS always
+beats layered CSS in the cascade regardless of source order or selector specificity —
+including Tailwind's own `.fixed` utility, which lives inside Tailwind's `utilities`
+`@layer`. Since the modal renders as a direct child of `.office-shell`, that blanket
+child-selector rule was quietly winning. Fixed by scoping the depth-pass rule to one
+dedicated `.office-shell-content` wrapper class instead of `> *`, so it can never again
+collide with an unrelated descendant's own positioning.
+
+**Also addressed proactively**: the "Session activity" card was stretching to match the
+taller "Needs your attention" column, leaving mostly empty space below a small sparkline.
+Split into three focused cards (Session activity, Top active agents, and a new **Team
+status** card listing every agent's live presence — active/waiting/idle — across every
+project, reusing the same presence system built for Office) instead of one card padded out
+with a single tall list.
+
+**Re-verified**: typecheck, lint, and production build clean; a fresh headless-browser pass
+confirmed the modal is now measurably centered (`(1100 - 755.66) / 2 = 172.17`, matching
+its actual rendered position exactly), Lounge renders all 11 idle test agents without
+clipping across two wrapped rows, and a full create → Build → approve regression still
+performs a real git merge (verified via `git log --graph --all` on the project's repo).
 
 ### Phase 5 — The loop — planned
 

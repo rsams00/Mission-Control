@@ -295,6 +295,28 @@ export async function getSessionActivitySparkline(days = 14) {
   return Array.from(counts.entries()).map(([date, count]) => ({ date, count }));
 }
 
+/** Every agent's total completed-session count across every project,
+ * busiest first — feeds the home page's "top active agents" mini
+ * leaderboard, filling out the Session Activity card below the sparkline. */
+export async function getTopActiveAgents(limit = 4) {
+  const rows = await db
+    .select({ agent, session })
+    .from(session)
+    .innerJoin(agent, eq(session.agentId, agent.id))
+    .where(eq(session.status, "completed"));
+
+  const countByAgent = new Map<string, { agent: (typeof rows)[number]["agent"]; count: number }>();
+  for (const row of rows) {
+    const existing = countByAgent.get(row.agent.id);
+    if (existing) existing.count += 1;
+    else countByAgent.set(row.agent.id, { agent: row.agent, count: 1 });
+  }
+
+  return Array.from(countByAgent.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
 /** One agent's cross-project footprint for the profile panel: every session
  * they've run and every project they've touched, newest first. */
 export async function getAgentActivity(agentId: string) {

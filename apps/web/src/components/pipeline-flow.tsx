@@ -1,8 +1,8 @@
-const WIDTH = 640;
-const HEIGHT = 120;
-const PAD_X = 24;
-const PAD_TOP = 14;
-const PAD_BOTTOM = 34;
+const WIDTH = 900;
+const HEIGHT = 200;
+const PAD_X = 36;
+const PAD_TOP = 36;
+const PAD_BOTTOM = 46;
 
 /**
  * "Flow"-styled visualization of the pipeline shape (2.3 visual pass),
@@ -41,47 +41,54 @@ export function PipelineFlow({ counts, labels }: { counts: number[]; labels: str
     first && last ? `${linePath} L ${last.x} ${HEIGHT - PAD_BOTTOM} L ${first.x} ${HEIGHT - PAD_BOTTOM} Z` : "";
 
   return (
-    <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} width="100%" height={HEIGHT} className="overflow-visible">
-      <defs>
-        <linearGradient id="pipeline-flow-fill" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="var(--viz-1)" />
-          <stop offset="35%" stopColor="var(--viz-2)" />
-          <stop offset="70%" stopColor="var(--viz-3)" />
-          <stop offset="100%" stopColor="var(--viz-4)" />
-        </linearGradient>
-      </defs>
+    // A fixed pixel `height` alongside width="100%" doesn't scale with a
+    // wider container (SVG's default preserveAspectRatio keeps it at its
+    // native size instead of stretching) — that's what made this chart
+    // stay small even in a wider card. An aspect-ratio wrapper with the
+    // SVG at width/height 100% scales both dimensions together instead.
+    <div style={{ aspectRatio: `${WIDTH} / ${HEIGHT}`, width: "100%" }}>
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="pipeline-flow-fill" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="var(--viz-1)" />
+            <stop offset="35%" stopColor="var(--viz-2)" />
+            <stop offset="70%" stopColor="var(--viz-3)" />
+            <stop offset="100%" stopColor="var(--viz-4)" />
+          </linearGradient>
+        </defs>
 
-      <path d={areaPath} fill="url(#pipeline-flow-fill)" opacity="0.14" />
-      <path d={linePath} fill="none" stroke="url(#pipeline-flow-fill)" strokeWidth="2" strokeLinecap="round" />
+        <path d={areaPath} fill="url(#pipeline-flow-fill)" opacity="0.14" />
+        <path d={linePath} fill="none" stroke="url(#pipeline-flow-fill)" strokeWidth="3" strokeLinecap="round" />
 
-      {points.map((p, i) => (
-        <g key={labels[i] ?? i}>
-          <circle cx={p.x} cy={p.y} r={4} fill="var(--color-bg, #121110)" stroke="url(#pipeline-flow-fill)" strokeWidth="2" />
-          <text
-            x={p.x}
-            y={p.y - 10}
-            textAnchor="middle"
-            className="stat-number"
-            style={{ fontSize: 11, fill: "var(--color-ink)", fontVariantNumeric: "tabular-nums" }}
-          >
-            {p.count}
-          </text>
-          <text
-            x={p.x}
-            y={HEIGHT - PAD_BOTTOM + 18}
-            textAnchor="middle"
-            style={{
-              fontSize: 9,
-              fill: "var(--color-ink-muted)",
-              fontFamily: "ui-monospace, monospace",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-            }}
-          >
-            {labels[i]}
-          </text>
-        </g>
-      ))}
-    </svg>
+        {points.map((p, i) => (
+          <g key={labels[i] ?? i}>
+            <circle cx={p.x} cy={p.y} r={6} fill="var(--color-surface)" stroke="url(#pipeline-flow-fill)" strokeWidth="3" />
+            <text
+              x={p.x}
+              y={p.y - 16}
+              textAnchor="middle"
+              className="stat-number"
+              style={{ fontSize: 20, fill: "var(--color-ink)", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}
+            >
+              {p.count}
+            </text>
+            <text
+              x={p.x}
+              y={HEIGHT - PAD_BOTTOM + 26}
+              textAnchor="middle"
+              style={{
+                fontSize: 14,
+                fill: "var(--color-ink-muted)",
+                fontFamily: "ui-monospace, monospace",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+              }}
+            >
+              {labels[i]}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
   );
 }

@@ -19,10 +19,12 @@ const PRESENCE_TEXT: Record<Profile["presence"], string> = {
 };
 
 /**
- * Slide-over panel opened by clicking an agent marker in the Office view:
+ * Centered modal opened by clicking an agent marker in the Office view:
  * RPG-style trait bars, current status, and a cross-project session
  * history — pulled on demand rather than passed down through every room,
- * same pattern as the chat widget's on-demand thread fetch.
+ * same pattern as the chat widget's on-demand thread fetch. Centered
+ * rather than docked to an edge so it's always fully visible on open,
+ * regardless of how far down the page the user had scrolled.
  */
 export function AgentProfilePanel({
   agentId,
@@ -45,15 +47,15 @@ export function AgentProfilePanel({
   const traits = (agent?.traits ?? {}) as Record<string, number>;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
       <button
         aria-label="Close profile"
         onClick={onClose}
-        className="panel-backdrop-in absolute inset-0 bg-black/50"
+        className="panel-backdrop-in absolute inset-0 bg-black/60"
         style={{ cursor: "default" }}
       />
       <div
-        className="panel-slide-in relative flex h-full w-full max-w-sm flex-col overflow-y-auto border-l shadow-2xl"
+        className="panel-slide-in relative flex max-h-[85vh] w-full max-w-sm flex-col overflow-y-auto rounded-2xl border shadow-2xl"
         style={{ background: "var(--color-surface)", borderColor: "var(--color-border)" }}
       >
         <div className="flex items-center justify-between border-b p-4" style={{ borderColor: "var(--color-border)" }}>

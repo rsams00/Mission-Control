@@ -7,6 +7,8 @@ import {
   getPipelineDistribution,
   getStageDeliverables,
   getSessionActivitySparkline,
+  getTopActiveAgents,
+  getGlobalOfficeState,
 } from "@/lib/data";
 import { StatTile } from "@/components/stat-tile";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -15,6 +17,9 @@ import { StageStatusBadge } from "@/components/stage-badge";
 import { ApprovalControls } from "@/components/approval-controls";
 import { Sparkline } from "@/components/sparkline";
 import { PipelineFlow } from "@/components/pipeline-flow";
+import { AGENT_IDENTITY } from "@/lib/agent-identity";
+import { StatusDot } from "@/components/status-dot";
+import type { AgentRole } from "@mission-control/shared";
 import { FolderKanban, AlertCircle, CheckCircle2, Users, DollarSign, Plus } from "lucide-react";
 
 const STAGE_LABEL: Record<string, string> = {
@@ -28,13 +33,26 @@ const STAGE_LABEL: Record<string, string> = {
 };
 
 export default async function HomePage() {
-  const [stats, needsAttention, activity, distribution, sparkline] = await Promise.all([
+  const [stats, needsAttention, activity, distribution, sparkline, topAgents, officeState] = await Promise.all([
     getPortfolioStats(),
     getNeedsAttention(),
     getPortfolioActivity(),
     getPipelineDistribution(),
     getSessionActivitySparkline(),
+    getTopActiveAgents(4),
+    getGlobalOfficeState(),
   ]);
+
+  const totalSessions = sparkline.reduce((sum, d) => sum + d.count, 0);
+  const avgPerDay = sparkline.length > 0 ? totalSessions / sparkline.length : 0;
+  const busiestDay = sparkline.reduce((best, d) => (d.count > best.count ? d : best), sparkline[0] ?? { date: "", count: 0 });
+
+  // Working agents first (active, then waiting), idle last — so the "who's
+  // doing what right now" list on the home page leads with what matters.
+  const presenceRank = { active: 0, waiting: 1, idle: 2 } as const;
+  const teamStatus = [...officeState].sort(
+    (a, b) => presenceRank[a.assignment?.presence ?? "idle"] - presenceRank[b.assignment?.presence ?? "idle"],
+  );
 
   // Approval inbox needs a deliverable id per stage to wire up inline
   // Approve/Reject — same "first deliverable" convention the project page
@@ -122,28 +140,97 @@ export default async function HomePage() {
               <Sparkline points={sparkline.map((d) => d.count)} />
               <div className="mt-2 flex items-center justify-between text-[0.68rem] text-ink-muted">
                 <span>{sparkline[0]?.date.slice(5)}</span>
-                <span className="stat-number text-ink">
-                  {sparkline.reduce((sum, d) => sum + d.count, 0)} total
-                </span>
+                <span className="stat-number text-ink">{totalSessions} total</span>
                 <span>{sparkline[sparkline.length - 1]?.date.slice(5)}</span>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4">
+                <div>
+                  <p className="font-mono text-[0.62rem] uppercase tracking-widest text-ink-muted">Avg / day</p>
+                  <p className="stat-number mt-1 text-xl font-semibold text-ink">{avgPerDay.toFixed(1)}</p>
+                </div>
+                <div>
+                  <p className="font-mono text-[0.62rem] uppercase tracking-widest text-ink-muted">Busiest day</p>
+                  <p className="stat-number mt-1 text-xl font-semibold text-ink">
+                    {busiestDay.count}
+                    <span className="ml-1.5 text-xs font-normal text-ink-muted">{busiestDay.date.slice(5)}</span>
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Pipeline shape</CardTitle>
-              <CardDescription>How many projects currently sit in each stage.</CardDescription>
+              <CardTitle>Top active agents</CardTitle>
+              <CardDescription>Most completed sessions, all time.</CardDescription>
             </CardHeader>
             <CardContent>
-              <PipelineFlow
-                counts={PROJECT_STAGES.map((s) => distribution.get(s) ?? 0)}
-                labels={PROJECT_STAGES.map((s) => STAGE_LABEL[s] ?? s)}
-              />
+              {topAgents.length === 0 ? (
+                <p className="text-sm text-ink-muted">No sessions have run yet.</p>
+              ) : (
+                <ul className="flex flex-col gap-2.5">
+                  {topAgents.map(({ agent, count }) => {
+                    const identity = AGENT_IDENTITY[agent.role as AgentRole];
+                    return (
+                      <li key={agent.id} className="flex items-center gap-2.5">
+                        <identity.Icon
+                          className="h-3.5 w-3.5 shrink-0"
+                          style={{ color: `var(${identity.color})` }}
+                          strokeWidth={1.75}
+                        />
+                        <span className="flex-1 truncate text-sm text-ink">{agent.name}</span>
+                        <span className="stat-number text-xs text-ink-muted">{count} sessions</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Team status</CardTitle>
+              <CardDescription>Every agent, right now — across every project.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="flex flex-col gap-2.5">
+                {teamStatus.map(({ agent, assignment }) => {
+                  const identity = AGENT_IDENTITY[agent.role as AgentRole];
+                  const presence = assignment?.presence ?? "idle";
+                  return (
+                    <li key={agent.id} className="flex items-center gap-2.5">
+                      <identity.Icon
+                        className="h-3.5 w-3.5 shrink-0"
+                        style={{ color: `var(${identity.color})` }}
+                        strokeWidth={1.75}
+                      />
+                      <span className="flex-1 truncate text-sm text-ink">{agent.name}</span>
+                      <span className="truncate text-xs text-ink-muted">
+                        {assignment ? assignment.projectName : "idle"}
+                      </span>
+                      <StatusDot presence={presence} pulse />
+                    </li>
+                  );
+                })}
+              </ul>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pipeline shape</CardTitle>
+          <CardDescription>How many projects currently sit in each stage.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PipelineFlow
+            counts={PROJECT_STAGES.map((s) => distribution.get(s) ?? 0)}
+            labels={PROJECT_STAGES.map((s) => STAGE_LABEL[s] ?? s)}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

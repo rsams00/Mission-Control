@@ -61,9 +61,10 @@ export default async function GlobalOfficePage() {
 
   return (
     <div
-      className="office-shell flex flex-col gap-6 rounded-2xl border p-6"
+      className="office-shell rounded-2xl border p-6"
       style={{ ...OFFICE_THEME, borderColor: "var(--color-border)", background: "var(--color-bg)", color: "var(--color-ink)" }}
     >
+      <div className="office-shell-content flex flex-col gap-6">
       <div>
         <p className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--color-ink-muted)" }}>
           Agent Office
@@ -96,6 +97,7 @@ export default async function GlobalOfficePage() {
             ))}
           </ul>
         )}
+      </div>
       </div>
     </div>
   );

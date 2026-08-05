@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
 /*
- * Mission Control — Tier A theme, Rev. 4 (Phase 2.1 overhaul).
- * Warm near-black charcoal (not navy-tinted) + a single vivid orange/amber
- * accent, per the user's reference direction. Tier B (office view) is
- * intentionally untouched — it keeps its own distinct plum/amber palette,
- * scoped locally to that page.
+ * Mission Control — Tier A theme, Rev. 5 (Phase 2.3 fix pass).
+ * Neutrals shifted from charcoal toward the same purple-tinted dark Office
+ * uses (--color-bg etc. below), so the two tiers read as siblings rather
+ * than opposites — per direct user feedback. The orange/amber accent is
+ * unchanged; this is neutral-hue convergence, not a full palette merge.
  */
 :root {
-  --color-bg: #121110;
-  --color-surface: #1a1815;
-  --color-surface-raised: #242019;
+  --color-bg: #17111f;
+  --color-surface: #1e1729;
+  --color-surface-raised: #291f38;
   --color-ink: #f5f1ea;
-  --color-ink-muted: #a89f92;
-  --color-border: #322c25;
+  --color-ink-muted: #a89aa8;
+  --color-border: #362a49;
   --color-accent: #ff7a29;
   --color-accent-ink: #1a0f04;
   --color-success: #5fd67a;
@@ -168,7 +168,17 @@ a {
   background-size: 220px 220px;
 }
 
-.office-shell > * {
+/*
+ * Deliberately NOT `.office-shell > *` — that blanket child selector is
+ * unlayered plain CSS, which beats even Tailwind's `.fixed` utility class
+ * (inside Tailwind's `utilities` @layer) regardless of source order, per
+ * CSS cascade-layer rules. That silently turned the profile modal's
+ * `position: fixed` into `position: relative` since it renders as a
+ * direct child of .office-shell, breaking its viewport-centered layout.
+ * Scoping to one dedicated wrapper class avoids touching anything else
+ * that happens to be a direct child, now or later.
+ */
+.office-shell-content {
   position: relative;
   z-index: 1;
 }
@@ -189,15 +199,16 @@ a {
   }
 }
 
-/* Slide-over panel entrance (agent profile) — one deliberate moment, not
-   scattered effects. Backdrop fades, panel slides in from the edge. */
+/* Modal entrance (agent profile) — one deliberate moment, not scattered
+   effects. Backdrop fades, the card scales up from just-below-full-size
+   rather than sliding in from an edge, since it's centered, not docked. */
 @keyframes panel-backdrop-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 @keyframes panel-slide-in {
-  from { transform: translateX(24px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 .panel-backdrop-in {
   animation: panel-backdrop-in 180ms ease-out;
