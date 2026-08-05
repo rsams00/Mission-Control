@@ -21,7 +21,7 @@ export function RoomShell({
 }) {
   return (
     <div
-      className="relative flex min-h-[168px] flex-col overflow-hidden rounded-2xl border-2 p-0 transition-colors"
+      className="relative flex min-h-[248px] flex-col overflow-hidden rounded-2xl border-2 p-0 transition-colors"
       style={{
         borderColor: active ? "var(--color-accent)" : "var(--color-border)",
         boxShadow: active
